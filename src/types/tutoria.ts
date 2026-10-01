@@ -1,4 +1,79 @@
 export type RolSimulado = 'TUTOR' | 'ALUMNO';
+export type RolUsuario = 'TUTOR' | 'TUTORADO';
+
+export interface UsuarioSistema {
+  id: string;
+  nombre: string;
+  email: string;
+  passwordHash: string;
+  rol: RolUsuario;
+  avatar: string;
+  activo: boolean;
+  fechaRegistro: string;
+  ultimoAcceso?: string;
+  // Vínculo con las entidades del dominio escolar
+  tutorProfileId?: string;
+  estudianteProfileId?: string;
+  // Campos de perfil para Tutor
+  departamento?: string;
+  cubículo?: string;
+  // Campos de perfil para Tutorado (Alumno)
+  matricula?: string;
+  carrera?: string;
+  semestre?: number;
+  promedio?: number;
+  telefono?: string;
+}
+
+export interface JwtPayload {
+  sub: string; // ID del usuario en la base de usuarios
+  email: string;
+  nombre: string;
+  rol: RolUsuario;
+  profileId: string; // ID de Tutor (tutor-xxx) o Estudiante (est-xxx)
+  iat: number; // Issued at (timestamp segundos)
+  exp: number; // Expiration (timestamp segundos)
+}
+
+export interface SesionAutenticada {
+  token: string;
+  payload: JwtPayload;
+  usuario: Omit<UsuarioSistema, 'passwordHash'>;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+  recordarme?: boolean;
+}
+
+export interface RegistroUsuarioPayload {
+  nombre: string;
+  email: string;
+  password: string;
+  confirmarPassword?: string;
+  rol: RolUsuario;
+  // Campos opcionales según rol
+  departamento?: string;
+  cubículo?: string;
+  matricula?: string;
+  carrera?: string;
+  semestre?: number;
+  telefono?: string;
+}
+
+export interface ActualizarPerfilPayload {
+  nombre?: string;
+  telefono?: string;
+  departamento?: string;
+  cubículo?: string;
+  matricula?: string;
+  carrera?: string;
+  semestre?: number;
+  passwordActual?: string;
+  passwordNueva?: string;
+}
+
 
 export interface Tutor {
   id: string;
