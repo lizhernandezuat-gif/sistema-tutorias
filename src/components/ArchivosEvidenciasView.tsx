@@ -10,6 +10,12 @@ import {
   EditarArchivoPayload
 } from '../types/tutoria';
 import { tutoriaService } from '../services/tutoriaService';
+import {
+  dataUrlToBlob,
+  abrirDocumentoEnPestana,
+  descargarDocumento,
+  decodeTextFromDataUrl
+} from '../utils/tutoriaUtils';
 import { AvatarWithFallback } from './AvatarWithFallback';
 import {
   UploadCloud,
@@ -29,7 +35,19 @@ import {
   X,
   ShieldCheck,
   FileUp,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Copy,
+  Check,
+  FileSpreadsheet,
+  FileArchive,
+  FileCode,
+  Edit3,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface ArchivosEvidenciasViewProps {
@@ -59,7 +77,30 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
   const [modalRevisarAbierto, setModalRevisarAbierto] = useState(false);
   const [archivoSeleccionado, setArchivoSeleccionado] = useState<ArchivoSistema | null>(null);
 
+  // Modal Visor de Documentos
+  const [modalVisorAbierto, setModalVisorAbierto] = useState(false);
+  const [archivoAVisualizar, setArchivoAVisualizar] = useState<ArchivoSistema | null>(null);
+  const [blobUrlActual, setBlobUrlActual] = useState<string>('');
+  const [textoDecodificado, setTextoDecodificado] = useState<string | null>(null);
+  const [zoomImagen, setZoomImagen] = useState<number>(100);
+  const [copiadoTexto, setCopiadoTexto] = useState(false);
+
+  // Modal de Confirmación de Eliminación (sin window.confirm)
+  const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
+  const [archivoAEliminar, setArchivoAEliminar] = useState<ArchivoSistema | null>(null);
+  const [eliminandoArchivo, setEliminandoArchivo] = useState(false);
+
+  // Modal de Edición de Archivo (renombrar, cambiar categoría, actualizar descripción)
+  const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
+  const [archivoAEditar, setArchivoAEditar] = useState<ArchivoSistema | null>(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editCategoria, setEditCategoria] = useState<CategoriaArchivo>('Evidencia');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
   // Formulario Subir Archivo
+  const [paginaActual, setPaginaActual] = useState(1);
+  const elementosPorPagina = 8;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [archivoFile, setArchivoFile] = useState<File | null>(null);
   const [archivoDataUrl, setArchivoDataUrl] = useState<string>('');
@@ -132,7 +173,6 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
     if (!nombreArchivo) {
       setNombreArchivo(file.name);
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -250,15 +290,36 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
     }
   };
 
-  const handleDescargar = (archivo: ArchivoSistema) => {
-    const enlace = document.createElement('a');
-    enlace.href = archivo.contenidoDataUrl;
-    enlace.download = archivo.nombre;
-    document.body.appendChild(enlace);
-    enlace.click();
-    document.body.removeChild(enlace);
+  const handleAbrirVisor = (archivo: ArchivoSistema) => {
+    setArchivoAVisualizar(archivo);
+    setZoomImagen(100);
+    setCopiadoTexto(false);
+
+    const esTexto =
+      archivo.tipo.startsWith('text/') ||
+      archivo.nombre.match(/\.(txt|md|csv|json|js|ts|py|sql|html|css|xml|log|ini|env)$/i);
+
+    if (esTexto && archivo.contenidoDataUrl) {
+      const decoded = decodeTextFromDataUrl(archivo.contenidoDataUrl);
+      setTextoDecodificado(decoded);
+    } else {
+      setTextoDecodificado(null);
+    }
+
+    const blob = dataUrlToBlob(archivo.contenidoDataUrl);
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      setBlobUrlActual(url);
+    } else {
+      setBlobUrlActual(archivo.contenidoDataUrl || '');
+    }
+    setModalVisorAbierto(true);
   };
 
+  const handleCerrarVisor = () => {
+    setModalVisorAbierto(false);
+    if (blobUrlActual && blobUrlActual.startsWith('blob:')) {
+      URL.revokeObjectURL(blobUrlActual);
   // Verificación de permisos según rol institucional
   const puedeEditarOEliminar = (archivo: ArchivoSistema): boolean => {
     if (rolActivo === 'TUTOR') return true;
@@ -334,6 +395,85 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
     } else {
       setMensajeAlerta({ texto: res.message, tipo: 'error' });
     }
+    setBlobUrlActual('');
+    setArchivoAVisualizar(null);
+    setTextoDecodificado(null);
+    setZoomImagen(100);
+  };
+
+  const handlePedirEditar = (archivo: ArchivoSistema) => {
+    setArchivoAEditar(archivo);
+    setEditNombre(archivo.nombre);
+    setEditCategoria(archivo.categoria);
+    setEditDescripcion(archivo.descripcion || '');
+    setModalEditarAbierto(true);
+  };
+
+  const handleGuardarEdicionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!archivoAEditar || !editNombre.trim()) return;
+    setGuardandoEdicion(true);
+
+    const res = await tutoriaService.actualizarArchivo(
+      {
+        archivoId: archivoAEditar.id,
+        nombre: editNombre.trim(),
+        categoria: editCategoria,
+        descripcion: editDescripcion.trim()
+      },
+      rolActivo === 'TUTOR' ? tutorActivo.id : estudianteActivo.id
+    );
+
+    setGuardandoEdicion(false);
+    if (res.success) {
+      setModalEditarAbierto(false);
+      setArchivoAEditar(null);
+      setMensajeAlerta({ texto: 'Documento actualizado con éxito.', tipo: 'ok' });
+      setTimeout(() => setMensajeAlerta(null), 2500);
+      await cargarDatos();
+    } else {
+      setMensajeAlerta({ texto: res.message || 'Error al actualizar documento.', tipo: 'error' });
+      setTimeout(() => setMensajeAlerta(null), 3000);
+    }
+  };
+
+  const handlePedirEliminar = (archivo: ArchivoSistema) => {
+    setArchivoAEliminar(archivo);
+    setModalEliminarAbierto(true);
+  };
+
+  const handleEjecutarEliminacion = async () => {
+    if (!archivoAEliminar) return;
+    const targetId = archivoAEliminar.id;
+    setEliminandoArchivo(true);
+
+    // Respuesta visual instantánea
+    setArchivos((prev) => prev.filter((a) => a.id !== targetId));
+
+    const res = await tutoriaService.eliminarArchivo(targetId);
+    setEliminandoArchivo(false);
+    setModalEliminarAbierto(false);
+    setArchivoAEliminar(null);
+
+    if (res.success) {
+      setMensajeAlerta({ texto: 'Documento eliminado correctamente del almacenamiento persistente.', tipo: 'ok' });
+    } else {
+      setMensajeAlerta({ texto: res.message || 'Error al eliminar el archivo.', tipo: 'error' });
+    }
+    setTimeout(() => setMensajeAlerta(null), 3000);
+    await cargarDatos();
+  };
+
+  const handleCopiarAlPortapapeles = (texto: string) => {
+    if (!texto) return;
+    navigator.clipboard.writeText(texto).then(() => {
+      setCopiadoTexto(true);
+      setTimeout(() => setCopiadoTexto(false), 2000);
+    });
+  };
+
+  const handleDescargar = (archivo: ArchivoSistema) => {
+    descargarDocumento(archivo.contenidoDataUrl, archivo.nombre);
   };
 
   // Filtrado de archivos
@@ -349,6 +489,16 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
 
     return matchBusqueda && matchCategoria && matchEstado;
   });
+
+  const totalPaginas = Math.max(1, Math.ceil(archivosFiltrados.length / elementosPorPagina));
+  const archivosPaginados = archivosFiltrados.slice(
+    (paginaActual - 1) * elementosPorPagina,
+    paginaActual * elementosPorPagina
+  );
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroCategoria, filtroEstado]);
 
   const conteoPendientes = archivos.filter((a) => a.estadoRevision === 'Pendiente').length;
   const conteoAprobados = archivos.filter((a) => a.estadoRevision === 'Aprobado').length;
@@ -459,7 +609,6 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
               <FolderOpen className="w-3.5 h-3.5" />
               <span>Documentos y Evidencias Recibidas ({archivos.length})</span>
             </button>
-
             <button
               onClick={() => setTabActiva('actividades')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
@@ -540,7 +689,8 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
 
           {/* Tabla de Documentos con Estilo Institucional UAT */}
           {archivosFiltrados.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div>
+              <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
@@ -552,10 +702,14 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
-                  {archivosFiltrados.map((archivo) => {
+                  {archivosPaginados.map((archivo) => {
                     const esAprobado = archivo.estadoRevision === 'Aprobado';
                     const esPendiente = archivo.estadoRevision === 'Pendiente';
                     const esCorrec = archivo.estadoRevision === 'Requiere Corrección';
+                    const puedeEliminar =
+                      rolActivo === 'TUTOR' ||
+                      archivo.autorId === estudianteActivo.id ||
+                      archivo.tutoradoId === estudianteActivo.id;
 
                     return (
                       <tr
@@ -568,9 +722,14 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                               <FileText className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-heading font-semibold text-slate-900 dark:text-white truncate">
+                              <button
+                                type="button"
+                                onClick={() => handleAbrirVisor(archivo)}
+                                className="font-heading font-semibold text-slate-900 dark:text-white truncate hover:text-[#EE7402] dark:hover:text-[#EE7402] text-left cursor-pointer transition-colors max-w-[280px] block"
+                                title="Haz clic para abrir el documento"
+                              >
                                 {archivo.nombre}
-                              </p>
+                              </button>
                               <p className="text-[11px] text-slate-400 truncate">
                                 {archivo.tamanoFormateado} &middot; Subido por {archivo.autorNombre}
                               </p>
@@ -585,7 +744,7 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                         </td>
 
                         <td className="py-3 px-3 text-slate-500 dark:text-slate-400 text-[11px] font-mono">
-                          {archivo.fechaSubida}
+                          {new Date(archivo.fechaSubida).toLocaleDateString()}
                         </td>
 
                         <td className="py-3 px-3">
@@ -617,45 +776,62 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                         </td>
 
                         <td className="py-3 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Botón Abrir / Ver Documento */}
                             <button
+                              type="button"
+                              onClick={() => handleAbrirVisor(archivo)}
+                              className="px-2.5 py-1 rounded-lg bg-[#EE7402]/10 hover:bg-[#EE7402] hover:text-white text-[#EE7402] text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Abrir y previsualizar documento en pantalla"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Abrir</span>
+                            </button>
+
+                            {/* Botón Descargar */}
+                            <button
+                              type="button"
                               onClick={() => handleDescargar(archivo)}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title="Descargar archivo"
+                              title="Descargar archivo en equipo"
                             >
                               <Download className="w-4 h-4" />
                             </button>
 
                             {rolActivo === 'TUTOR' && (
                               <button
+                                type="button"
                                 onClick={() => {
                                   setArchivoSeleccionado(archivo);
                                   setNuevoEstadoRevision(archivo.estadoRevision);
                                   setComentarioRevision(archivo.comentarioTutor || '');
                                   setModalRevisarAbierto(true);
                                 }}
-                                className="px-2 py-1 rounded-lg bg-[#EE7402]/10 hover:bg-[#EE7402] hover:text-white text-[#EE7402] text-[11px] font-semibold transition-colors cursor-pointer"
-                                title="Revisar evidencia y retroalimentar"
+                                className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition-colors cursor-pointer"
                               >
                                 Revisar
                               </button>
                             )}
 
-                            {puedeEditarOEliminar(archivo) && (
+                            {/* Botón Editar Archivo */}
+                            {puedeEliminar && (
                               <button
-                                onClick={() => handleAbrirEditar(archivo)}
-                                className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-[#EE7402] hover:bg-[#EE7402]/10 dark:hover:bg-[#EE7402]/20 transition-colors cursor-pointer"
-                                title="Editar nombre, descripción o comentarios"
+                                type="button"
+                                onClick={() => handlePedirEditar(archivo)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Editar título o categoría del documento"
                               >
-                                <Edit3 className="w-4 h-4" />
+                                <Edit3 className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                               </button>
                             )}
 
-                            {puedeEditarOEliminar(archivo) && (
+                            {/* Botón Eliminar Archivo (disponible para el autor o tutor) */}
+                            {puedeEliminar && (
                               <button
-                                onClick={() => handleAbrirConfirmarBorrado(archivo)}
-                                className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                                title="Eliminar archivo"
+                                type="button"
+                                onClick={() => handlePedirEliminar(archivo)}
+                                className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title="Eliminar archivo permanentemente"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -668,6 +844,55 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {/* Paginación de Documentos para Reducir Saturación Visual */}
+            {totalPaginas > 1 && (
+              <div className="bg-slate-50/60 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-800 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Mostrando <strong className="text-slate-800 dark:text-white">{(paginaActual - 1) * elementosPorPagina + 1}</strong> - <strong className="text-slate-800 dark:text-white">{Math.min(paginaActual * elementosPorPagina, archivosFiltrados.length)}</strong> de <strong className="text-slate-800 dark:text-white">{archivosFiltrados.length}</strong> documentos
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
+                    disabled={paginaActual === 1}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-medium transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Anterior</span>
+                  </button>
+
+                  <div className="flex items-center gap-1 px-1">
+                    {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setPaginaActual(num)}
+                        className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer ${
+                          paginaActual === num
+                            ? 'bg-[#EE7402] text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaginaActual((prev) => Math.min(totalPaginas, prev + 1))}
+                    disabled={paginaActual === totalPaginas}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-medium transition-colors cursor-pointer"
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           ) : (
             <div className="text-center py-12 bg-slate-50/50 dark:bg-slate-800/20 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
               <FolderOpen className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
@@ -742,7 +967,6 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                   </p>
                 </div>
               </div>
-
               <button
                 onClick={() => setModalSubirAbierto(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
@@ -1052,9 +1276,286 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 4: EDITAR ARCHIVO / DESCRIPCIÓN / COMENTARIOS       */}
+      {/* MODAL 4: VISOR DE DOCUMENTOS Y EVIDENCIAS UAT             */}
       {/* ========================================================= */}
-      {modalEditarAbierto && archivoEnEdicion && (
+      {modalVisorAbierto && archivoAVisualizar && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+            {/* Cabecera del visor */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-950/40">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center shrink-0">
+                  {archivoAVisualizar.tipo.startsWith('image/') || archivoAVisualizar.nombre.match(/\.(png|jpg|jpeg|webp|gif|svg)$/i) ? (
+                    <Eye className="w-5 h-5 text-[#EE7402]" />
+                  ) : archivoAVisualizar.tipo === 'application/pdf' || archivoAVisualizar.nombre.endsWith('.pdf') ? (
+                    <FileText className="w-5 h-5 text-rose-500" />
+                  ) : archivoAVisualizar.nombre.match(/\.(xlsx|xls|csv)$/i) ? (
+                    <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                  ) : archivoAVisualizar.nombre.match(/\.(zip|rar|7z|tar|gz)$/i) ? (
+                    <FileArchive className="w-5 h-5 text-purple-600" />
+                  ) : archivoAVisualizar.nombre.match(/\.(js|ts|py|sql|html|css|json|md|txt)$/i) ? (
+                    <FileCode className="w-5 h-5 text-amber-600" />
+                  ) : (
+                    <FileText className="w-5 h-5 text-[#EE7402]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-heading font-bold text-sm text-slate-900 dark:text-white truncate">
+                      {archivoAVisualizar.nombre}
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EE7402]/15 text-[#EE7402]">
+                      {archivoAVisualizar.categoria}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {archivoAVisualizar.tamanoFormateado} &bull; Subido por <strong>{archivoAVisualizar.autorNombre}</strong> ({archivoAVisualizar.autorRol}) &bull; {new Date(archivoAVisualizar.fechaSubida).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleDescargar(archivoAVisualizar)}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#EE7402] hover:bg-[#D96200] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                  title="Descargar y guardar copia original en tu equipo"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Descargar / Abrir</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCerrarVisor}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Cerrar visor"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Contenido / Vista Previa del Documento */}
+            <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-100/50 dark:bg-slate-950 flex flex-col items-center justify-center min-h-[380px]">
+              {/* CASO 1: IMÁGENES */}
+              {archivoAVisualizar.tipo.startsWith('image/') || archivoAVisualizar.nombre.match(/\.(png|jpg|jpeg|webp|gif|svg)$/i) ? (
+                <div className="w-full flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs text-xs font-medium text-slate-600 dark:text-slate-300">
+                    <button
+                      type="button"
+                      onClick={() => setZoomImagen((prev) => Math.max(50, prev - 25))}
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer"
+                      title="Alejar"
+                    >
+                      <ZoomOut className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="font-mono text-[11px] px-1">{zoomImagen}%</span>
+                    <button
+                      type="button"
+                      onClick={() => setZoomImagen((prev) => Math.min(200, prev + 25))}
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer"
+                      title="Acercar"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomImagen(100)}
+                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md cursor-pointer ml-1 text-slate-400 hover:text-slate-700"
+                      title="Restablecer tamaño"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="max-h-[64vh] overflow-auto flex items-center justify-center p-2 w-full">
+                    <img
+                      src={blobUrlActual || archivoAVisualizar.contenidoDataUrl}
+                      alt={archivoAVisualizar.nombre}
+                      style={{ transform: `scale(${zoomImagen / 100})`, transformOrigin: 'center center' }}
+                      className="max-h-[58vh] max-w-full rounded-xl object-contain shadow-md border border-slate-200 dark:border-slate-800 transition-transform duration-150"
+                    />
+                  </div>
+                </div>
+              ) : textoDecodificado !== null ? (
+                /* CASO 2: TEXTO / CÓDIGO / MARKDOWN / CSV / JSON DECODIFICADO */
+                <div className="w-full max-w-3xl flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
+                      <FileCode className="w-4 h-4 text-[#EE7402]" />
+                      <span>Contenido de Texto del Archivo</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopiarAlPortapapeles(textoDecodificado)}
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {copiadoTexto ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiadoTexto ? 'Copiado' : 'Copiar Texto'}</span>
+                    </button>
+                  </div>
+                  <pre className="p-4 overflow-auto max-h-[60vh] font-mono text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap select-text bg-slate-50/50 dark:bg-slate-950/60">
+                    {textoDecodificado || '(El archivo no contiene texto legible)'}
+                  </pre>
+                </div>
+              ) : archivoAVisualizar.tipo === 'application/pdf' || archivoAVisualizar.nombre.endsWith('.pdf') ? (
+                /* CASO 3: DOCUMENTO PDF */
+                <div className="w-full flex flex-col items-center gap-3">
+                  <div className="w-full bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+                      <FileText className="w-4 h-4 text-rose-500" />
+                      <span>Documento PDF: {archivoAVisualizar.nombre}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDescargar(archivoAVisualizar)}
+                      className="px-3 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Abrir en Visor PDF Nativo</span>
+                    </button>
+                  </div>
+
+                  <iframe
+                    src={blobUrlActual || archivoAVisualizar.contenidoDataUrl}
+                    title={archivoAVisualizar.nombre}
+                    className="w-full h-[62vh] rounded-xl border border-slate-200 dark:border-slate-800 bg-white"
+                  />
+                </div>
+              ) : (
+                /* CASO 4: DOCUMENTOS OFFICE (WORD, EXCEL, POWERPOINT) Y COMPRIMIDOS */
+                <div className="max-w-lg w-full bg-white dark:bg-slate-900 p-7 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-5 shadow-sm animate-in zoom-in-95 duration-150">
+                  <div className="w-16 h-16 rounded-2xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center mx-auto">
+                    {archivoAVisualizar.nombre.match(/\.(xlsx|xls)$/i) ? (
+                      <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
+                    ) : archivoAVisualizar.nombre.match(/\.(zip|rar|7z)$/i) ? (
+                      <FileArchive className="w-8 h-8 text-purple-600" />
+                    ) : (
+                      <FileText className="w-8 h-8 text-[#EE7402]" />
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-heading font-bold text-base text-slate-900 dark:text-white break-all">
+                      {archivoAVisualizar.nombre}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      {archivoAVisualizar.categoria} &bull; {archivoAVisualizar.tamanoFormateado} &bull; Formato: {archivoAVisualizar.tipo || 'Documento binario'}
+                    </p>
+                  </div>
+
+                  {archivoAVisualizar.descripcion && (
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-left">
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-0.5">Descripción de la entrega:</span>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 italic">
+                        &ldquo;{archivoAVisualizar.descripcion}&rdquo;
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 rounded-xl p-3 text-left">
+                    <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+                      💡 <strong>Apertura de Documentos:</strong> Los archivos de Microsoft Office (.docx, .xlsx, .pptx) y comprimidos se descargan y abren de forma nativa en tu suite ofimática preferida con 100% de fidelidad tipográfica y de fórmulas.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDescargar(archivoAVisualizar)}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#EE7402] hover:bg-[#D96200] text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Descargar y Abrir en mi Equipo</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCopiarAlPortapapeles(archivoAVisualizar.nombre)}
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {copiadoTexto ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiadoTexto ? 'Copiado' : 'Copiar Nombre'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Pie del visor con comentarios del tutor si existen */}
+            {archivoAVisualizar.comentarioTutor && (
+              <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-xs">
+                <div className="flex items-center gap-2 font-semibold text-[#EE7402] mb-1">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Retroalimentación del Tutor ({archivoAVisualizar.estadoRevision}):</span>
+                </div>
+                <p className="text-slate-700 dark:text-slate-300 italic">
+                  &ldquo;{archivoAVisualizar.comentarioTutor}&rdquo;
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 5: CONFIRMAR ELIMINACIÓN DE ARCHIVO (SIN WINDOW.CONFIRM) */}
+      {/* ========================================================= */}
+      {modalEliminarAbierto && archivoAEliminar && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                ¿Eliminar documento de tutoría?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Se borrará del expediente institucional de forma permanente.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+              <p className="font-semibold text-slate-900 dark:text-white truncate">
+                {archivoAEliminar.nombre}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {archivoAEliminar.categoria} &bull; {archivoAEliminar.tamanoFormateado} &bull; Subido por {archivoAEliminar.autorNombre}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalEliminarAbierto(false);
+                  setArchivoAEliminar(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={eliminandoArchivo}
+                onClick={handleEjecutarEliminacion}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{eliminandoArchivo ? 'Eliminando...' : 'Sí, Eliminar Documento'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 6: EDITAR INFORMACIÓN DEL DOCUMENTO                  */}
+      {/* ========================================================= */}
+      {modalEditarAbierto && archivoAEditar && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -1063,156 +1564,90 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
                   <Edit3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-heading font-bold text-sm text-slate-900 dark:text-white">
-                    Editar Información del Documento
+                  <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                    Editar Datos del Documento
                   </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Modificar nombre, descripción o retroalimentación
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Modificar nombre, categoría o descripción institucional
                   </p>
                 </div>
               </div>
-
               <button
-                onClick={() => setModalEditarAbierto(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg"
+                type="button"
+                onClick={() => {
+                  setModalEditarAbierto(false);
+                  setArchivoAEditar(null);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleGuardarEdicion} className="space-y-3.5">
+            <form onSubmit={handleGuardarEdicionSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Nombre del Archivo *
+                  Nombre del Archivo / Documento:
                 </label>
                 <input
                   type="text"
-                  required
                   value={editNombre}
                   onChange={(e) => setEditNombre(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                  required
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Categoría del Documento
+                  Categoría del Documento:
                 </label>
                 <select
                   value={editCategoria}
                   onChange={(e) => setEditCategoria(e.target.value as CategoriaArchivo)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 cursor-pointer"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
                 >
                   <option value="Evidencia">Evidencia de Tutoría</option>
-                  <option value="Material de Apoyo">Material de Apoyo</option>
-                  <option value="Tarea / Actividad">Tarea / Actividad</option>
-                  <option value="Documento Institucional">Documento Institucional UAT</option>
+                  <option value="Material de Apoyo">Material de Apoyo / Guía Docente</option>
+                  <option value="Tarea / Actividad">Tarea / Actividad Académica</option>
+                  <option value="Documento Institucional">Documento Oficial Institucional UAT</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Descripción o Notas del Documento
+                  Descripción o Notas del Documento:
                 </label>
                 <textarea
                   rows={3}
                   value={editDescripcion}
                   onChange={(e) => setEditDescripcion(e.target.value)}
-                  placeholder="Escribe una breve descripción del contenido de este documento..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 resize-none"
+                  placeholder="Añade notas o contexto relevante de este archivo..."
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 resize-none"
                 />
               </div>
 
-              {rolActivo === 'TUTOR' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Comentarios del Tutor / Retroalimentación
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={editComentarioTutor}
-                    onChange={(e) => setEditComentarioTutor(e.target.value)}
-                    placeholder="Observaciones o retroalimentación para el alumno..."
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 resize-none"
-                  />
-                </div>
-              )}
-
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setModalEditarAbierto(false)}
-                  className="px-3.5 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 cursor-pointer"
+                  onClick={() => {
+                    setModalEditarAbierto(false);
+                    setArchivoAEditar(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardandoEdicion}
-                  className="px-4 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#EE7402] hover:bg-[#D96200] text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  {guardandoEdicion ? 'Guardando...' : 'Guardar Cambios'}
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{guardandoEdicion ? 'Guardando...' : 'Guardar Cambios'}</span>
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL 5: CONFIRMAR ELIMINACIÓN DE ARCHIVO                 */}
-      {/* ========================================================= */}
-      {modalConfirmarBorradoAbierto && archivoParaBorrar && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-heading font-bold text-sm text-slate-900 dark:text-white">
-                  Confirmar Eliminación de Archivo
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Esta acción eliminará el archivo de forma permanente
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-white truncate">
-                <FileText className="w-4 h-4 text-[#EE7402] shrink-0" />
-                <span className="truncate">{archivoParaBorrar.nombre}</span>
-              </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                <span>{archivoParaBorrar.tamanoFormateado}</span>
-                <span>&bull;</span>
-                <span>Subido por {archivoParaBorrar.autorNombre}</span>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              ¿Estás seguro de que deseas eliminar este archivo? Una vez eliminado, no podrá recuperarse del almacenamiento institucional.
-            </p>
-
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setModalConfirmarBorradoAbierto(false)}
-                className="px-3.5 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmarBorrado}
-                disabled={borrando}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>{borrando ? 'Eliminando...' : 'Eliminar Definitivamente'}</span>
-              </button>
-            </div>
           </div>
         </div>
       )}

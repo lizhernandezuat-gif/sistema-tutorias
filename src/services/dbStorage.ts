@@ -91,11 +91,11 @@ class DatabaseStorageService {
         req.onerror = () => reject(req.error);
       });
 
-      if (records && records.length > 0) {
+      if (records !== undefined && records !== null) {
         return records;
       }
     } catch {
-      // Fallback a localStorage
+      // Fallback a localStorage únicamente si IndexedDB arrojó error de apertura/transacción
     }
 
     // 2. Fallback a localStorage
@@ -144,6 +144,11 @@ class DatabaseStorageService {
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
+        // Protección: nunca sobreescribir en IndexedDB con el placeholder
+        if (storeName === 'archivos' && (item as any).contenidoDataUrl === '[ALMACENADO_EN_INDEXEDDB]') {
+          resolve();
+          return;
+        }
         const req = store.put(item);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
@@ -192,7 +197,12 @@ class DatabaseStorageService {
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
-        items.forEach((item) => store.put(item));
+        items.forEach((item: any) => {
+          if (storeName === 'archivos' && item.contenidoDataUrl === '[ALMACENADO_EN_INDEXEDDB]') {
+            return;
+          }
+          store.put(item);
+        });
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
@@ -240,13 +250,23 @@ class DatabaseStorageService {
       const raw = localStorage.getItem(key);
       if (raw) {
         const all: any[] = JSON.parse(raw);
-        const filtrados = all.filter((x) => x.id !== id);
+        const filtrados = all.filter((x) => String(x.id) !== String(id));
         localStorage.setItem(key, JSON.stringify(filtrados));
+      }
+
+      if (storeName === 'archivos') {
+        const rawArchivos = localStorage.getItem('sistema_tutorias_archivos_v2');
+        if (rawArchivos) {
+          const all: any[] = JSON.parse(rawArchivos);
+          const filtrados = all.filter((x) => String(x.id) !== String(id));
+          localStorage.setItem('sistema_tutorias_archivos_v2', JSON.stringify(filtrados));
+        }
       }
     } catch {
       // Ignorar
     }
   }
+
 
   /**
    * Limpia todos los registros de una tabla
@@ -267,6 +287,9 @@ class DatabaseStorageService {
 
     try {
       localStorage.removeItem(`db_${storeName}`);
+      if (storeName === 'archivos') {
+        localStorage.removeItem('sistema_tutorias_archivos_v2');
+      }
     } catch {
       // Ignorar
     }

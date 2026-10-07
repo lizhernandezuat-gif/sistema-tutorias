@@ -296,7 +296,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                   {/* Visualización del Logo Moderno */}
                   <div className="py-6 px-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 flex items-center justify-center min-h-[170px] shadow-2xs">
-                    <UatCorporateLogo showSubtext={true} />
+                    <UatCorporateLogo showSubtitle={true} />
                   </div>
 
                   <h3 className="font-heading font-bold text-sm text-slate-900 dark:text-white mt-4">

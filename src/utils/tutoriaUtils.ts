@@ -83,3 +83,130 @@ export function getEstadoConfig(estado: EstadoTutorado): EstadoBadgeConfig {
       };
   }
 }
+
+/**
+ * Convierte un Data URL o Base64 a un Blob con su MIME type correcto
+ */
+export function dataUrlToBlob(dataUrl: string): Blob | null {
+  try {
+    if (!dataUrl) return null;
+    if (dataUrl.startsWith('blob:')) {
+      return null;
+    }
+    if (!dataUrl.includes(',')) {
+      // Intentar decodificar como base64 puro
+      try {
+        const binary = atob(dataUrl.trim());
+        const array = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          array[i] = binary.charCodeAt(i);
+        }
+        return new Blob([array], { type: 'application/octet-stream' });
+      } catch {
+        return null;
+      }
+    }
+    const parts = dataUrl.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const binary = atob(parts[1]);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      array[i] = binary.charCodeAt(i);
+    }
+    return new Blob([array], { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decodifica texto legible a partir de un Data URL Base64 (txt, csv, md, json, codigo, etc.)
+ */
+export function decodeTextFromDataUrl(dataUrl: string): string | null {
+  try {
+    if (!dataUrl) return null;
+    let base64Part = dataUrl;
+    if (dataUrl.includes(',')) {
+      base64Part = dataUrl.split(',')[1];
+    }
+    const binary = atob(base64Part.trim());
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const text = decoder.decode(bytes);
+    // Verificar si es mayormente texto imprimible
+    return text;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Abre de forma segura un documento en una pestaña nueva usando un Blob URL seguro
+ */
+export function abrirDocumentoEnPestana(dataUrl: string, nombre?: string): void {
+  try {
+    const blob = dataUrlToBlob(dataUrl);
+    if (blob) {
+      const blobUrl = URL.createObjectURL(blob);
+      const nuevaVentana = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      if (!nuevaVentana) {
+        // Si el navegador bloqueó la ventana emergente en el iframe, descargar como respaldo
+        descargarDocumento(dataUrl, nombre || 'documento');
+      }
+    } else if (dataUrl && (dataUrl.startsWith('http') || dataUrl.startsWith('data:'))) {
+      const nuevaVentana = window.open(dataUrl, '_blank', 'noopener,noreferrer');
+      if (!nuevaVentana) {
+        descargarDocumento(dataUrl, nombre || 'documento');
+      }
+    } else if (nombre) {
+      descargarDocumento(dataUrl, nombre);
+    }
+  } catch {
+    if (nombre) descargarDocumento(dataUrl, nombre);
+  }
+}
+
+/**
+ * Descarga forzada de un archivo a partir de un DataURL o Blob
+ */
+export function descargarDocumento(dataUrl: string, nombre: string): void {
+  try {
+    let url = dataUrl;
+    let blob: Blob | null = null;
+
+    if (!dataUrl) {
+      console.warn('No hay contenido para descargar');
+      return;
+    }
+
+    if (dataUrl.startsWith('data:')) {
+      blob = dataUrlToBlob(dataUrl);
+      if (blob) {
+        url = URL.createObjectURL(blob);
+      }
+    }
+
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre || 'documento-descargado';
+    enlace.style.display = 'none';
+    document.body.appendChild(enlace);
+    enlace.click();
+
+    setTimeout(() => {
+      try {
+        document.body.removeChild(enlace);
+        if (blob) {
+          URL.revokeObjectURL(url);
+        }
+      } catch {}
+    }, 500);
+  } catch (err) {
+    console.warn('Error al descargar documento:', err);
+  }
+}
+

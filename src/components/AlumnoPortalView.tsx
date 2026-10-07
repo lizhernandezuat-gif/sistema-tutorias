@@ -21,6 +21,7 @@ import {
   Mail,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   X,
   Send,
   Trash2,
@@ -136,10 +137,12 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
     }
   };
 
-  const handleCancelarCita = async (citaId: string) => {
-    if (confirm('¿Deseas cancelar esta sesión de tutoría?')) {
-      await tutoriaService.cancelarCitaComoAlumno(citaId);
-    }
+  const [modalCancelarCitaId, setModalCancelarCitaId] = useState<string | null>(null);
+
+  const handleConfirmarCancelarCita = async () => {
+    if (!modalCancelarCitaId) return;
+    await tutoriaService.cancelarCitaComoAlumno(modalCancelarCitaId);
+    setModalCancelarCitaId(null);
   };
 
   const handleResponderCitaGrupal = async (citaId: string, respuesta: 'Confirmada' | 'Rechazada') => {
@@ -483,7 +486,7 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
 
                           {!esCancelada && cita.id && (
                             <button
-                              onClick={() => handleCancelarCita(cita.id!)}
+                              onClick={() => setModalCancelarCitaId(cita.id!)}
                               className="text-[11px] text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 font-medium px-2 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                             >
                               Cancelar
@@ -789,6 +792,49 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Cancelar Cita */}
+      {modalCancelarCitaId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalCancelarCitaId(null);
+          }}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-5 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-heading font-bold text-sm text-slate-900 dark:text-white">
+                  Cancelar Sesión
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  ¿Confirmas que deseas cancelar esta sesión de tutoría?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setModalCancelarCitaId(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarCancelarCita}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              >
+                Sí, Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}

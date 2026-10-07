@@ -31,6 +31,8 @@ import {
   CalendarPlus,
   Download,
   ChevronDown,
+  Users,
+  Check
   Check,
   AlertTriangle,
   Search,
@@ -52,27 +54,22 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
 }) => {
   const [citas, setCitas] = useState<CitaAsesoria[]>([]);
   const [filtroModalidad, setFiltroModalidad] = useState<'TODAS' | 'Presencial' | 'Virtual'>('TODAS');
-  const [filtroTipoSesion, setFiltroTipoSesion] = useState<'TODAS' | 'INDIVIDUAL' | 'GRUPAL'>('TODAS');
+  const [filtroTipo, setFiltroTipo] = useState<'TODAS' | 'INDIVIDUAL' | 'GRUPAL'>('TODAS');
   const [modalAgendarAbierto, setModalAgendarAbierto] = useState(false);
   const [menuExportarAbierto, setMenuExportarAbierto] = useState(false);
 
-  // Modal para agregar/quitar tutorados de una sesión grupal existente
-  const [modalEditarParticipantesAbierto, setModalEditarParticipantesAbierto] = useState(false);
-  const [citaSeleccionadaParaEditar, setCitaSeleccionadaParaEditar] = useState<CitaAsesoria | null>(null);
-  const [participantesSeleccionadosEdicion, setParticipantesSeleccionadosEdicion] = useState<string[]>([]);
-  const [guardandoParticipantes, setGuardandoParticipantes] = useState(false);
+  // Modal Cancelar Sesión (sin window.confirm)
+  const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
+  const [citaACancelar, setCitaACancelar] = useState<CitaAsesoria | null>(null);
 
-  // Formulario de nueva sesión
-  const [tipoNuevaSesion, setTipoNuevaSesion] = useState<'individual' | 'grupal'>(
-    rolActivo === 'TUTOR' ? 'grupal' : 'individual'
-  );
+  // Formulario de nueva sesión (Soporte Individual y Grupal)
+  const [tipoNuevaSesion, setTipoNuevaSesion] = useState<'INDIVIDUAL' | 'GRUPAL'>('INDIVIDUAL');
   const [estudianteSeleccionadoId, setEstudianteSeleccionadoId] = useState(estudianteActivo.id);
-  const [estudiantesGrupalesSeleccionados, setEstudiantesGrupalesSeleccionados] = useState<string[]>([
-    catalogoEstudiantes[0]?.id || estudianteActivo.id
-  ]);
-  const [busquedaAlumnoModal, setBusquedaAlumnoModal] = useState('');
-
-  const [tema, setTema] = useState('Revisión de Avance Curricular y Estrategias de Estudio');
+  const [alumnosGrupalesIds, setAlumnosGrupalesIds] = useState<string[]>(
+    catalogoEstudiantes.map((e) => e.id)
+  );
+  const [cupoMaximo, setCupoMaximo] = useState<number>(25);
+  const [tema, setTema] = useState('Revisión de Avance Curricular');
   const [fecha, setFecha] = useState('2026-10-18');
   const [hora, setHora] = useState('11:00 AM');
   const [modalidad, setModalidad] = useState<'Presencial' | 'Virtual'>('Presencial');
@@ -85,6 +82,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
 
   const cargarCitas = async () => {
     if (rolActivo === 'TUTOR') {
+      const res = await tutoriaService.getCitasTutor(tutorActivo.id);
       const res = await tutoriaService.getCitasPorTutor(tutorActivo.id);
       if (res.data) {
         setCitas(res.data);
@@ -150,6 +148,20 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
         motivoDetalle
       };
 
+    const esGrupal = tipoNuevaSesion === 'GRUPAL';
+
+    const payload: SolicitarAsesoriaPayload = {
+      estudianteId: esGrupal ? 'TODOS' : (rolActivo === 'TUTOR' ? estudianteSeleccionadoId : estudianteActivo.id),
+      tutorId: tutorActivo.id,
+      tema,
+      fecha,
+      hora,
+      modalidad,
+      motivoDetalle,
+      tipo: tipoNuevaSesion,
+      estudiantesIds: esGrupal ? alumnosGrupalesIds : [rolActivo === 'TUTOR' ? estudianteSeleccionadoId : estudianteActivo.id],
+      cupoMaximo: esGrupal ? cupoMaximo : 1
+    };
       const res = await tutoriaService.agendarSesionGrupal(payload);
       setGuardando(false);
 
@@ -197,6 +209,12 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
   const handleResponderSesionGrupal = async (citaId: string, respuesta: 'Confirmada' | 'Rechazada') => {
     const res = await tutoriaService.responderCitaGrupalComoAlumno(citaId, estudianteActivo.id, respuesta);
     if (res.success) {
+      setMensajeExito(esGrupal ? '¡Sesión grupal agendada con éxito!' : 'Sesión agendada exitosamente en el calendario.');
+      setTimeout(() => {
+        setModalAgendarAbierto(false);
+        setMensajeExito(null);
+        setMotivoDetalle('');
+      }, 1200);
       cargarCitas();
     }
   };
@@ -239,6 +257,30 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
     }
   };
 
+  const handlePedirCancelar = (cita: CitaAsesoria) => {
+    setCitaACancelar(cita);
+    setModalCancelarAbierto(true);
+  };
+
+  const handleConfirmarCancelar = async () => {
+    if (!citaACancelar) return;
+    await tutoriaService.cancelarCitaComoAlumno(citaACancelar.id);
+    setModalCancelarAbierto(false);
+    setCitaACancelar(null);
+    cargarCitas();
+  };
+
+  const toggleSeleccionAlumnoGrupal = (id: string) => {
+    setAlumnosGrupalesIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const seleccionarTodosAlumnos = () => {
+    if (alumnosGrupalesIds.length === catalogoEstudiantes.length) {
+      setAlumnosGrupalesIds([]);
+    } else {
+      setAlumnosGrupalesIds(catalogoEstudiantes.map((e) => e.id));
   const handleCancelarCita = async (citaId: string) => {
     if (confirm('¿Estás seguro de cancelar esta sesión del calendario institucional?')) {
       await tutoriaService.cancelarCitaComoAlumno(citaId);
@@ -249,6 +291,10 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
   // Filtrado de citas
   const citasFiltradas = citas.filter((c) => {
     const matchModalidad = filtroModalidad === 'TODAS' || c.modalidad === filtroModalidad;
+    const matchTipo =
+      filtroTipo === 'TODAS' ||
+      (filtroTipo === 'GRUPAL' && (c.tipo === 'GRUPAL' || c.estudianteId === 'TODOS')) ||
+      (filtroTipo === 'INDIVIDUAL' && c.tipo !== 'GRUPAL' && c.estudianteId !== 'TODOS');
     const esGrupal = c.esGrupal || c.estudianteId === 'GRUPAL' || (c.estudiantesIds && c.estudiantesIds.length > 1);
     const matchTipo =
       filtroTipoSesion === 'TODAS' ||
@@ -276,6 +322,18 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {rolActivo === 'TUTOR'
+              ? `Agenda de sesiones individuales y grupales para ${tutorActivo.nombre}`
+              : `Tus sesiones de acompañamiento tutorial con ${tutorActivo.nombre}`}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Filtro por tipo de sesión */}
+          <div className="flex items-center bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+            <button
+              onClick={() => setFiltroTipo('TODAS')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
+                filtroTipo === 'TODAS'
               ? `Agenda institucional de tutorías individuales y talleres grupales del ${tutorActivo.nombre}`
               : `Tus sesiones individuales y talleres grupales con tu tutor ${tutorActivo.nombre}`}
           </p>
@@ -292,6 +350,12 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
+              Todas
+            </button>
+            <button
+              onClick={() => setFiltroTipo('INDIVIDUAL')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                filtroTipo === 'INDIVIDUAL'
               Todas ({citas.length})
             </button>
             <button
@@ -302,6 +366,13 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
+              <User className="w-3 h-3" />
+              <span>Individuales</span>
+            </button>
+            <button
+              onClick={() => setFiltroTipo('GRUPAL')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1 ${
+                filtroTipo === 'GRUPAL'
               <Users className="w-3 h-3" />
               <span>Grupales ({conteoGrupales})</span>
             </button>
@@ -313,6 +384,8 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
+              <Users className="w-3 h-3" />
+              <span>Grupales</span>
               <User className="w-3 h-3" />
               <span>Individuales ({conteoIndividuales})</span>
             </button>
@@ -322,45 +395,46 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
           <div className="flex items-center bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
             <button
               onClick={() => setFiltroModalidad('TODAS')}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
               className={`px-2 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 filtroModalidad === 'TODAS'
-                  ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Todas
+              Todo formato
             </button>
             <button
               onClick={() => setFiltroModalidad('Presencial')}
-              className={`px-2 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
                 filtroModalidad === 'Presencial'
-                  ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Presenciales
+              Presencial
             </button>
             <button
               onClick={() => setFiltroModalidad('Virtual')}
-              className={`px-2 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
                 filtroModalidad === 'Virtual'
-                  ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Virtuales
+              Virtual
             </button>
           </div>
 
           {/* Exportar a Google Calendar / ICS */}
           <div className="relative">
             <button
-              onClick={() => setMenuExportarAbierto(prev => !prev)}
-              className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-700 shrink-0"
+              onClick={() => setMenuExportarAbierto((prev) => !prev)}
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80 dark:border-slate-700 shrink-0"
               title="Exportar sesiones a Google Calendar o descargar archivo .ics"
             >
               <CalendarPlus className="w-3.5 h-3.5 text-[#EE7402]" />
-              <span className="hidden sm:inline">Exportar Cal</span>
+              <span className="hidden sm:inline">Google Calendar</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
@@ -368,16 +442,16 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <button
                   onClick={() => {
-                    const proxima = citasFiltradas.find(c => c.estado !== 'Cancelada') || citasFiltradas[0];
+                    const proxima = citasFiltradas.find((c) => c.estado !== 'Cancelada') || citasFiltradas[0];
                     if (proxima) {
-                      const alumno = catalogoEstudiantes.find(e => e.id === proxima.estudianteId) || estudianteActivo;
-                      abrirGoogleCalendar(proxima, proxima.esGrupal ? 'Sesión Grupal' : alumno.nombre, tutorActivo.nombre);
+                      const alumno = catalogoEstudiantes.find((e) => e.id === proxima.estudianteId) || estudianteActivo;
+                      abrirGoogleCalendar(proxima, alumno.nombre, tutorActivo.nombre);
                     }
                     setMenuExportarAbierto(false);
                   }}
                   className="w-full text-left p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
-                  <CalendarPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <CalendarPlus className="w-4 h-4 text-[#EE7402] shrink-0" />
                   <div>
                     <span className="font-semibold block">Abrir en Google Calendar</span>
                     <span className="text-[10px] text-slate-400 block">Añade la próxima sesión activa</span>
@@ -403,13 +477,10 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
 
           {/* Botón Agendar Sesión */}
           <button
-            onClick={() => {
-              setTipoNuevaSesion(rolActivo === 'TUTOR' ? 'grupal' : 'individual');
-              setModalAgendarAbierto(true);
-            }}
-            className="px-3.5 sm:px-4 py-2 bg-[#EE7402] hover:bg-[#D96200] active:bg-[#BF5600] text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all hover:scale-[1.01] cursor-pointer shrink-0"
+            onClick={() => setModalAgendarAbierto(true)}
+            className="px-3.5 py-1.5 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.01] cursor-pointer shrink-0"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-3.5 h-3.5" />
             <span>Agendar Sesión</span>
           </button>
         </div>
@@ -419,7 +490,8 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {citasFiltradas.length > 0 ? (
           citasFiltradas.map((cita) => {
-            const esGrupal = cita.esGrupal || cita.estudianteId === 'GRUPAL' || (cita.estudiantesIds && cita.estudiantesIds.length > 1);
+            const esGrupal = cita.tipo === 'GRUPAL' || cita.estudianteId === 'TODOS';
+            const alumno = catalogoEstudiantes.find((e) => e.id === cita.estudianteId) || estudianteActivo;
             const esVirtual = cita.modalidad === 'Virtual';
             const esCancelada = cita.estado === 'Cancelada';
 
@@ -446,26 +518,13 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   esCancelada
                     ? 'border-slate-200 dark:border-slate-800 opacity-60'
                     : esGrupal
-                    ? 'border-[#EE7402]/40 dark:border-[#EE7402]/30 hover:border-[#EE7402] ring-1 ring-[#EE7402]/10'
-                    : 'border-slate-200/90 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/50'
+                    ? 'border-[#EE7402]/30 hover:border-[#EE7402] dark:hover:border-[#EE7402]/70 shadow-sm'
+                    : 'border-slate-200/90 dark:border-slate-800 hover:border-[#EE7402]/50'
                 }`}
               >
                 <div>
-                  {/* Badges superiores: Estado, Modalidad y Etiqueta Grupal */}
-                  <div className="flex items-start justify-between gap-2 mb-3 flex-wrap">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {esGrupal ? (
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EE7402]/15 text-[#C45500] dark:text-[#EE7402] border border-[#EE7402]/40 flex items-center gap-1">
-                          <Users className="w-3 h-3 text-[#EE7402]" />
-                          <span>Sesión Grupal ({participantesGrupales.length || cita.estudiantesIds?.length || 0} alumnos)</span>
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                          <User className="w-3 h-3 text-slate-500" />
-                          <span>Individual</span>
-                        </span>
-                      )}
-
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-1.5">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                           esCancelada
@@ -477,10 +536,22 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                       >
                         {cita.estado}
                       </span>
+
+                      {/* Tag Individual vs Grupal */}
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                          esGrupal
+                            ? 'bg-[#EE7402]/10 text-[#EE7402] border-[#EE7402]/30'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        {esGrupal ? <Users className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                        <span>{esGrupal ? 'Sesión Grupal' : 'Individual'}</span>
+                      </span>
                     </div>
 
                     <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                      {esVirtual ? <Video className="w-3.5 h-3.5 text-sky-500" /> : <MapPin className="w-3.5 h-3.5 text-emerald-500" />}
+                      {esVirtual ? <Video className="w-3.5 h-3.5 text-sky-500" /> : <MapPin className="w-3.5 h-3.5 text-[#EE7402]" />}
                       {cita.modalidad}
                     </span>
                   </div>
@@ -490,78 +561,38 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     {cita.tema}
                   </h3>
 
-                  {/* Participantes: Grupal vs Individual */}
+                  {/* Participantes / Alumnos */}
                   {esGrupal ? (
-                    <div className="p-3 rounded-xl bg-orange-50/50 dark:bg-slate-800/60 border border-[#EE7402]/20 dark:border-slate-700 my-3 space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <div className="p-3 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-900/40 my-3 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <Users className="w-3.5 h-3.5 text-[#EE7402]" />
-                          <span>Tutorados participantes:</span>
+                          <span>Tutoría Grupal</span>
                         </span>
-
-                        {rolActivo === 'TUTOR' && !esCancelada && (
-                          <button
-                            onClick={() => handleAbrirEditarParticipantes(cita)}
-                            className="text-[10px] font-bold text-[#EE7402] hover:underline flex items-center gap-1 cursor-pointer"
-                            title="Agregar o quitar alumnos de esta sesión grupal"
-                          >
-                            <UserPlus className="w-3 h-3" />
-                            <span>Modificar lista</span>
-                          </button>
-                        )}
+                        <span className="text-[10px] font-mono text-[#EE7402] font-bold">
+                          {cita.estudiantesIds?.length || catalogoEstudiantes.length} alumnos convocados
+                        </span>
                       </div>
-
-                      {/* Lista resumida de avatares y nombres con confirmación */}
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                        {participantesGrupales.map((alum) => {
-                          const conf = cita.confirmaciones?.[alum.id] || 'Pendiente';
-                          return (
-                            <div
-                              key={alum.id}
-                              className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-700/80 text-[11px]"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <AvatarWithFallback
-                                  src={alum.avatar}
-                                  alt={alum.nombre}
-                                  className="w-5 h-5 rounded-full shrink-0"
-                                />
-                                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
-                                  {alum.nombre}
-                                </span>
-                              </div>
-
-                              <span
-                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
-                                  conf === 'Confirmada'
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                                    : conf === 'Rechazada'
-                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300'
-                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
-                                }`}
-                              >
-                                {conf}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {rolActivo === 'TUTOR'
+                          ? 'Convocatoria general para tus tutorados asignados'
+                          : `Sesión grupal dirigida por ${tutorActivo.nombre}`}
+                      </p>
                     </div>
                   ) : (
-                    /* Participante Individual */
                     <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 my-3">
                       <AvatarWithFallback
-                        src={(rolActivo === 'TUTOR' ? alumnoIndividual?.avatar : tutorActivo.avatar) || ''}
-                        alt={rolActivo === 'TUTOR' ? alumnoIndividual?.nombre || '' : tutorActivo.nombre}
+                        src={rolActivo === 'TUTOR' ? alumno.avatar : tutorActivo.avatar}
+                        alt={rolActivo === 'TUTOR' ? alumno.nombre : tutorActivo.nombre}
                         className="w-8 h-8 rounded-lg shrink-0"
                       />
                       <div className="min-w-0">
                         <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">
-                          {rolActivo === 'TUTOR' ? alumnoIndividual?.nombre : tutorActivo.nombre}
+                          {rolActivo === 'TUTOR' ? alumno.nombre : tutorActivo.nombre}
                         </span>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
                           {rolActivo === 'TUTOR'
-                            ? `${formatSemestre(alumnoIndividual?.semestre || 1)} • ${alumnoIndividual?.matricula}`
+                            ? `${formatSemestre(alumno.semestre)} • ${alumno.matricula}`
                             : tutorActivo.departamento}
                         </span>
                       </div>
@@ -571,7 +602,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   {/* Fecha, Hora y Ubicación */}
                   <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 mb-3">
                     <div className="flex items-center gap-2 text-[11px]">
-                      <CalendarIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <CalendarIcon className="w-3.5 h-3.5 text-[#EE7402]" />
                       <span className="font-medium">{cita.fecha}</span>
                       <span className="text-slate-300 dark:text-slate-600">&bull;</span>
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -586,8 +617,8 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                         </span>
                       ) : (
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-[#EE7402]" />
-                          <span>{cita.lugar || (esGrupal ? 'Aula Magna de Tutorías' : tutorActivo.cubículo)}</span>
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          {cita.lugar || (esGrupal ? 'Aula Magna de Tutorías UAT' : tutorActivo.cubículo)}
                         </span>
                       )}
                     </div>
@@ -656,7 +687,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                         href={cita.enlaceVirtual}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sky-600 dark:text-sky-400 font-semibold hover:underline flex items-center gap-1 text-[11px]"
+                        className="text-[#EE7402] font-semibold hover:underline flex items-center gap-1 text-[11px]"
                       >
                         <ExternalLink className="w-3 h-3" />
                         <span>Unirse a Meet</span>
@@ -670,14 +701,8 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     {!esCancelada && (
                       <div className="flex items-center gap-1 pl-1 border-l border-slate-200 dark:border-slate-700">
                         <button
-                          onClick={() =>
-                            abrirGoogleCalendar(
-                              cita,
-                              esGrupal ? 'Sesión Grupal' : alumnoIndividual?.nombre || '',
-                              tutorActivo.nombre
-                            )
-                          }
-                          className="p-1 rounded-md text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
+                          onClick={() => abrirGoogleCalendar(cita, esGrupal ? 'Grupo de Tutorados UAT' : alumno.nombre, tutorActivo.nombre)}
+                          className="p-1 rounded-md text-[#EE7402] hover:bg-[#EE7402]/10 text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
                           title="Añadir esta cita a Google Calendar"
                         >
                           <CalendarPlus className="w-3 h-3" />
@@ -702,7 +727,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
 
                   {!esCancelada && (
                     <button
-                      onClick={() => handleCancelarCita(cita.id)}
+                      onClick={() => handlePedirCancelar(cita)}
                       className="text-[11px] text-rose-600 dark:text-rose-400 hover:underline cursor-pointer ml-auto"
                     >
                       Cancelar
@@ -721,15 +746,12 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               No hay sesiones programadas
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-              {filtroModalidad !== 'TODAS' || filtroTipoSesion !== 'TODAS'
-                ? 'No se encontraron citas con los filtros seleccionados.'
+              {filtroModalidad !== 'TODAS' || filtroTipo !== 'TODAS'
+                ? 'No hay sesiones con los filtros seleccionados.'
                 : 'No se encontraron citas activas para este ciclo escolar.'}
             </p>
             <button
-              onClick={() => {
-                setTipoNuevaSesion(rolActivo === 'TUTOR' ? 'grupal' : 'individual');
-                setModalAgendarAbierto(true);
-              }}
+              onClick={() => setModalAgendarAbierto(true)}
               className="px-4 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold inline-flex items-center gap-2 cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
@@ -739,9 +761,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
         )}
       </div>
 
-      {/* ======================================================== */}
-      {/* MODAL 1: AGENDAR NUEVA SESIÓN (INDIVIDUAL O GRUPAL)      */}
-      {/* ======================================================== */}
+      {/* Modal para Agendar Nueva Sesión (Individual o Grupal) */}
       {modalAgendarAbierto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
@@ -749,18 +769,18 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
             if (e.target === e.currentTarget) setModalAgendarAbierto(false);
           }}
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-xl rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto max-h-[90vh]">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 flex items-center justify-between shrink-0">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto max-h-[90vh]">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#EE7402]/15 text-[#EE7402] border border-[#EE7402]/30 flex items-center justify-center">
-                  {tipoNuevaSesion === 'grupal' ? <Users className="w-4 h-4" /> : <CalendarIcon className="w-4 h-4" />}
+                <div className="w-9 h-9 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
+                  <CalendarIcon className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="font-heading font-bold text-sm text-slate-900 dark:text-white">
-                    {tipoNuevaSesion === 'grupal' ? 'Agendar Sesión Grupal de Tutoría' : 'Programar Nueva Asesoría Individual'}
+                    Programar Sesión de Tutoría
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {rolActivo === 'TUTOR' ? `Docente Tutor: ${tutorActivo.nombre}` : `Con tu tutor: ${tutorActivo.nombre}`}
+                    {rolActivo === 'TUTOR' ? `Organizada por ${tutorActivo.nombre}` : `Con tu tutor: ${tutorActivo.nombre}`}
                   </p>
                 </div>
               </div>
@@ -780,142 +800,44 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                 </div>
               )}
 
-              {mensajeError && (
-                <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-500/40 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                  <p className="font-semibold">{mensajeError}</p>
-                </div>
-              )}
-
-              {/* Selector de Tipo de Sesión (Solo para Tutor) */}
+              {/* Selector de Tipo de Sesión: Individual vs Grupal (Disponible para Tutor) */}
               {rolActivo === 'TUTOR' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-                    Modalidad de Participantes
+                    Tipo de Formato Tutorial:
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => setTipoNuevaSesion('grupal')}
-                      className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        tipoNuevaSesion === 'grupal'
-                          ? 'bg-[#EE7402]/10 border-[#EE7402] text-[#EE7402] ring-2 ring-[#EE7402]/20 shadow-xs'
+                      onClick={() => setTipoNuevaSesion('INDIVIDUAL')}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                        tipoNuevaSesion === 'INDIVIDUAL'
+                          ? 'bg-[#EE7402]/10 border-[#EE7402] text-[#EE7402] shadow-2xs'
                           : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <Users className="w-4 h-4" />
-                      <span>Sesión Grupal (Varios Tutorados)</span>
+                      <User className="w-3.5 h-3.5" />
+                      <span>Sesión Individual (1 a 1)</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setTipoNuevaSesion('individual')}
-                      className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        tipoNuevaSesion === 'individual'
-                          ? 'bg-[#EE7402]/10 border-[#EE7402] text-[#EE7402] ring-2 ring-[#EE7402]/20 shadow-xs'
+                      onClick={() => setTipoNuevaSesion('GRUPAL')}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all ${
+                        tipoNuevaSesion === 'GRUPAL'
+                          ? 'bg-[#EE7402]/10 border-[#EE7402] text-[#EE7402] shadow-2xs'
                           : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      <User className="w-4 h-4" />
-                      <span>Individual (1 Alumno)</span>
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Sesión Grupal (Tutorados)</span>
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Si es Grupal: Selector Múltiple de Tutorados con Checkboxes */}
-              {rolActivo === 'TUTOR' && tipoNuevaSesion === 'grupal' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
-                      Seleccionar Tutorados Convocados <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="flex items-center gap-2 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={handleSeleccionarTodosGrupales}
-                        className="text-[#EE7402] hover:underline font-semibold cursor-pointer"
-                      >
-                        Todos ({catalogoEstudiantes.length})
-                      </button>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        type="button"
-                        onClick={handleDeseleccionarTodosGrupales}
-                        className="text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
-                      >
-                        Limpiar
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Barra de búsqueda de alumnos */}
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Buscar por nombre, carrera o matrícula..."
-                      value={busquedaAlumnoModal}
-                      onChange={(e) => setBusquedaAlumnoModal(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
-                    />
-                  </div>
-
-                  {/* Lista con checkboxes */}
-                  <div className="max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 space-y-1 bg-slate-50/60 dark:bg-slate-950/60">
-                    {catalogoEstudiantes
-                      .filter(al =>
-                        !busquedaAlumnoModal.trim() ||
-                        al.nombre.toLowerCase().includes(busquedaAlumnoModal.toLowerCase()) ||
-                        al.matricula.toLowerCase().includes(busquedaAlumnoModal.toLowerCase()) ||
-                        al.carrera.toLowerCase().includes(busquedaAlumnoModal.toLowerCase())
-                      )
-                      .map((al) => {
-                        const isChecked = estudiantesGrupalesSeleccionados.includes(al.id);
-                        return (
-                          <label
-                            key={al.id}
-                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                              isChecked
-                                ? 'bg-orange-50 dark:bg-[#EE7402]/15 border border-[#EE7402]/30'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleToggleEstudianteGrupal(al.id)}
-                              className="w-4 h-4 rounded text-[#EE7402] focus:ring-[#EE7402] cursor-pointer"
-                            />
-                            <AvatarWithFallback
-                              src={al.avatar}
-                              alt={al.nombre}
-                              className="w-6 h-6 rounded-full shrink-0"
-                            />
-                            <div className="min-w-0 flex-1 text-xs">
-                              <span className="font-semibold text-slate-900 dark:text-white block truncate">
-                                {al.nombre}
-                              </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
-                                {al.matricula} &bull; {al.carrera} &bull; Sem. {al.semestre}
-                              </span>
-                            </div>
-                          </label>
-                        );
-                      })}
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Seleccionados:{' '}
-                    <strong className="text-[#EE7402]">
-                      {estudiantesGrupalesSeleccionados.length} de {catalogoEstudiantes.length} alumnos
-                    </strong>
-                  </p>
-                </div>
-              )}
-
-              {/* Si es Individual (Tutor): Selector de un solo alumno */}
-              {rolActivo === 'TUTOR' && tipoNuevaSesion === 'individual' && (
+              {/* Si es Individual: selector de 1 alumno */}
+              {rolActivo === 'TUTOR' && tipoNuevaSesion === 'INDIVIDUAL' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
                     Seleccionar Alumno Tutorado <span className="text-rose-500">*</span>
@@ -934,7 +856,51 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                 </div>
               )}
 
-              {/* Tema o Motivo */}
+              {/* Si es Grupal: selección múltiple o convocatoria general */}
+              {rolActivo === 'TUTOR' && tipoNuevaSesion === 'GRUPAL' && (
+                <div className="space-y-2 p-3 bg-orange-50/50 dark:bg-orange-950/20 rounded-xl border border-orange-200/50 dark:border-orange-900/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Alumnos Convocados ({alumnosGrupalesIds.length} seleccionados)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={seleccionarTodosAlumnos}
+                      className="text-[11px] font-bold text-[#EE7402] hover:underline cursor-pointer"
+                    >
+                      {alumnosGrupalesIds.length === catalogoEstudiantes.length
+                        ? 'Deseleccionar todos'
+                        : 'Seleccionar todo mi grupo'}
+                    </button>
+                  </div>
+
+                  <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                    {catalogoEstudiantes.map((al) => {
+                      const estaSeleccionado = alumnosGrupalesIds.includes(al.id);
+                      return (
+                        <label
+                          key={al.id}
+                          className={`flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                            estaSeleccionado
+                              ? 'bg-white dark:bg-slate-900 border border-orange-200 dark:border-orange-900/60 font-medium text-slate-900 dark:text-white'
+                              : 'hover:bg-white/60 dark:hover:bg-slate-900/60 text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={estaSeleccionado}
+                            onChange={() => toggleSeleccionAlumnoGrupal(al.id)}
+                            className="rounded border-slate-300 text-[#EE7402] focus:ring-[#EE7402]"
+                          />
+                          <span className="truncate flex-1">{al.nombre}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{al.matricula}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
                   Tema o Motivo de la Sesión <span className="text-rose-500">*</span>
@@ -943,7 +909,11 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   type="text"
                   value={tema}
                   onChange={(e) => setTema(e.target.value)}
-                  placeholder={tipoNuevaSesion === 'grupal' ? 'Ej. Taller de Técnicas de Estudio y Exámenes Parciales' : 'Ej. Revisión de calificaciones y regularización'}
+                  placeholder={
+                    tipoNuevaSesion === 'GRUPAL'
+                      ? 'Ej. Tutoría Grupal: Inducción y Técnicas de Estudio'
+                      : 'Ej. Revisión de calificaciones parciales y plan de trabajo'
+                  }
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
                   required
                 />
@@ -995,12 +965,17 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     onClick={() => setModalidad('Presencial')}
                     className={`p-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-all ${
                       modalidad === 'Presencial'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-300 font-semibold'
+                        ? 'bg-[#EE7402]/10 border-[#EE7402] text-[#EE7402] font-semibold'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     <MapPin className="w-3.5 h-3.5" />
-                    <span>Presencial</span>
+                    <span>
+                      Presencial{' '}
+                      {tipoNuevaSesion === 'GRUPAL'
+                        ? '(Aula Magna UAT)'
+                        : `(${tutorActivo.cubículo.split(',')[1]?.trim() || 'Cubículo'})`}
+                    </span>
                   </button>
 
                   <button
@@ -1008,7 +983,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     onClick={() => setModalidad('Virtual')}
                     className={`p-2.5 rounded-xl border text-xs font-medium flex items-center justify-center gap-2 cursor-pointer transition-all ${
                       modalidad === 'Virtual'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-300 font-semibold'
+                        ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-500 text-sky-700 dark:text-sky-300 font-semibold'
                         : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                     }`}
                   >
@@ -1056,7 +1031,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   rows={2}
                   value={motivoDetalle}
                   onChange={(e) => setMotivoDetalle(e.target.value)}
-                  placeholder="Instrucciones, material que deben traer o puntos a revisar..."
+                  placeholder="Detalles sobre los puntos a tratar en la sesión..."
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 resize-none"
                 />
               </div>
@@ -1072,7 +1047,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="px-5 py-2 bg-[#EE7402] hover:bg-[#D96200] active:bg-[#BF5600] text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {guardando ? (
                     <>
@@ -1082,7 +1057,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   ) : (
                     <>
                       <Send className="w-3.5 h-3.5" />
-                      <span>{tipoNuevaSesion === 'grupal' ? 'Convocar Sesión Grupal' : 'Guardar en Agenda'}</span>
+                      <span>{tipoNuevaSesion === 'GRUPAL' ? 'Convocar Sesión Grupal' : 'Guardar en Agenda'}</span>
                     </>
                   )}
                 </button>
@@ -1092,110 +1067,50 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* MODAL 2: GESTIONAR / AGREGAR / QUITAR ALUMNOS EN GRUPAL  */}
-      {/* ======================================================== */}
-      {modalEditarParticipantesAbierto && citaSeleccionadaParaEditar && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setModalEditarParticipantesAbierto(false);
-          }}
-        >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-heading font-bold text-sm text-slate-900 dark:text-white">
-                    Participantes de Sesión Grupal
-                  </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[260px]">
-                    {citaSeleccionadaParaEditar.tema}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setModalEditarParticipantesAbierto(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      {/* Modal Confirmación de Cancelar Cita (Sin window.confirm) */}
+      {modalCancelarAbierto && citaACancelar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-xl p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+              <X className="w-6 h-6" />
             </div>
 
-            <div className="p-5 space-y-4">
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                Marca o desmarca los tutorados que deben participar en esta reunión grupal:
+            <div className="text-center space-y-1">
+              <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                ¿Cancelar esta sesión de tutoría?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                La cita cambiará a estado Cancelada y se liberará el horario de agenda.
               </p>
+            </div>
 
-              <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2 space-y-1 bg-slate-50/50 dark:bg-slate-950/50">
-                {catalogoEstudiantes.map((al) => {
-                  const isChecked = participantesSeleccionadosEdicion.includes(al.id);
-                  return (
-                    <label
-                      key={al.id}
-                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                        isChecked
-                          ? 'bg-orange-50 dark:bg-[#EE7402]/15 border border-[#EE7402]/30'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleParticipanteEdicion(al.id)}
-                        className="w-4 h-4 rounded text-[#EE7402] focus:ring-[#EE7402] cursor-pointer"
-                      />
-                      <AvatarWithFallback
-                        src={al.avatar}
-                        alt={al.nombre}
-                        className="w-6 h-6 rounded-full shrink-0"
-                      />
-                      <div className="min-w-0 flex-1 text-xs">
-                        <span className="font-semibold text-slate-900 dark:text-white block truncate">
-                          {al.nombre}
-                        </span>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
-                          {al.matricula} &bull; {al.carrera}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+              <p className="font-semibold text-slate-900 dark:text-white">
+                {citaACancelar.tema}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {citaACancelar.fecha} &bull; {citaACancelar.hora} &bull; Modalidad: {citaACancelar.modalidad}
+              </p>
+            </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-                <span>
-                  Total convocados: <strong className="text-[#EE7402]">{participantesSeleccionadosEdicion.length}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setParticipantesSeleccionadosEdicion(catalogoEstudiantes.map(e => e.id))}
-                  className="text-[#EE7402] hover:underline font-semibold cursor-pointer"
-                >
-                  Seleccionar todos
-                </button>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setModalEditarParticipantesAbierto(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGuardarParticipantesEdicion}
-                  disabled={guardandoParticipantes}
-                  className="px-5 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {guardandoParticipantes ? 'Guardando...' : 'Guardar Participantes'}
-                </button>
-              </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalCancelarAbierto(false);
+                  setCitaACancelar(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Mantener Cita
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarCancelar}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors cursor-pointer"
+              >
+                Sí, Cancelar Sesión
+              </button>
             </div>
           </div>
         </div>
