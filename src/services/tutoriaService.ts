@@ -129,7 +129,8 @@ export const CITAS_INICIALES: CitaAsesoria[] = [
     hora: '10:00 AM',
     tema: 'Orientación para Selección de Materias Optativas',
     modalidad: 'Virtual',
-    estado: 'Pendiente',
+    estado: 'Confirmada',
+    tipo: 'INDIVIDUAL',
     enlaceVirtual: 'https://meet.google.com/xyz-tutor-2026',
     motivoDetalle: 'Dudas sobre carga horaria y requisitos de materias del 3er semestre.'
   },
@@ -139,11 +140,18 @@ export const CITAS_INICIALES: CitaAsesoria[] = [
     tutorId: 'tutor-001',
     fecha: '2026-10-22',
     hora: '12:00 PM',
-    tema: 'Tutoría Grupal: Inducción, Técnicas de Estudio y Exámenes Parciales',
+    tema: 'Taller Grupal: Inducción, Técnicas de Estudio y Exámenes Parciales',
     modalidad: 'Presencial',
     estado: 'Confirmada',
     tipo: 'GRUPAL',
+    esGrupal: true,
     estudiantesIds: ['est-101', 'est-102', 'est-103', 'est-104'],
+    confirmaciones: {
+      'est-101': 'Pendiente',
+      'est-102': 'Confirmada',
+      'est-103': 'Confirmada',
+      'est-104': 'Pendiente'
+    },
     cupoMaximo: 25,
     lugar: 'Aula Magna de Tutorías UAT - Edificio Central',
     motivoDetalle: 'Sesión institucional grupal sobre estrategias de aprendizaje, calendario de evaluaciones y normatividad escolar UAT.'
@@ -839,6 +847,7 @@ class TutoriaBackendService {
       lugar: payload.lugar || (payload.modalidad === 'Presencial' ? 'Aula Magna de Tutorías / Cubículo' : undefined),
       enlaceVirtual: payload.enlaceVirtual || (payload.modalidad === 'Virtual' ? 'https://meet.google.com/tutoria-grupal-uat' : undefined),
       motivoDetalle: payload.motivoDetalle?.trim(),
+      tipo: 'GRUPAL',
       esGrupal: true,
       confirmaciones
     };
@@ -944,7 +953,7 @@ class TutoriaBackendService {
       };
     }
 
-    const esGrupal = payload.tipo === 'GRUPAL' || payload.estudianteId === 'TODOS';
+    const esGrupal = payload.tipo === 'GRUPAL' || payload.estudianteId === 'TODOS' || payload.estudianteId === 'GRUPAL';
 
     const nuevaCita: CitaAsesoria = {
       id: 'cita-' + Date.now().toString(36),
@@ -956,12 +965,15 @@ class TutoriaBackendService {
       modalidad: payload.modalidad,
       estado: 'Confirmada',
       lugar: payload.modalidad === 'Presencial'
-        ? (esGrupal ? 'Aula Magna de Tutorías UAT - Edificio B' : 'Cubículo del Tutor (Confirmado)')
+        ? (payload.lugar || (esGrupal ? 'Aula Magna de Tutorías UAT - Edificio B' : 'Cubículo del Tutor (Confirmado)'))
         : undefined,
-      enlaceVirtual: payload.modalidad === 'Virtual' ? 'https://meet.google.com/tutoria-pro-sesion' : undefined,
+      enlaceVirtual: payload.modalidad === 'Virtual' ? (payload.enlaceVirtual || 'https://meet.google.com/tutoria-pro-sesion') : undefined,
       motivoDetalle: payload.motivoDetalle?.trim(),
       tipo: esGrupal ? 'GRUPAL' : 'INDIVIDUAL',
-      estudiantesIds: payload.estudiantesIds || (payload.estudianteId ? [payload.estudianteId] : []),
+      esGrupal: esGrupal,
+      estudiantesIds: payload.estudiantesIds && payload.estudiantesIds.length > 0
+        ? payload.estudiantesIds
+        : (payload.estudianteId && payload.estudianteId !== 'GRUPAL' && payload.estudianteId !== 'TODOS' ? [payload.estudianteId] : []),
       cupoMaximo: payload.cupoMaximo || (esGrupal ? 25 : 1)
     };
 
@@ -996,6 +1008,10 @@ class TutoriaBackendService {
       statusCode: 200,
       timestamp: new Date().toISOString()
     };
+  }
+
+  public async cancelarCitaComoTutor(citaId: string): Promise<ApiResponse<{ id: string }>> {
+    return this.cancelarCitaComoAlumno(citaId);
   }
 
   /**
@@ -1303,13 +1319,26 @@ class TutoriaBackendService {
   /**
    * ENDPOINT: DELETE /api/archivos/:id
    */
-  public async eliminarArchivo(archivoId: string): Promise<ApiResponse<{ id: string }>> {
+  public async eliminarArchivo(
+    archivoId: string,
+    usuario?: { id: string; rol: 'TUTOR' | 'TUTORADO' }
+  ): Promise<ApiResponse<{ id: string }>> {
     const idx = this.archivos.findIndex((a) => String(a.id) === String(archivoId));
     if (idx === -1) {
       return {
         success: false,
         message: 'Archivo no encontrado.',
         statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const archivo = this.archivos[idx];
+    if (usuario && usuario.rol === 'TUTORADO' && archivo.autorId !== usuario.id) {
+      return {
+        success: false,
+        message: 'Acceso denegado: Solo puedes eliminar los archivos que tú mismo has subido.',
+        statusCode: 403,
         timestamp: new Date().toISOString()
       };
     }

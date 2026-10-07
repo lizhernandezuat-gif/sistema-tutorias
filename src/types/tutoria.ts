@@ -139,7 +139,9 @@ export interface CitaAsesoria {
   lugar?: string;
   enlaceVirtual?: string;
   motivoDetalle?: string;
+  tipo?: 'INDIVIDUAL' | 'GRUPAL';
   esGrupal?: boolean;
+  cupoMaximo?: number;
   confirmaciones?: Record<string, 'Confirmada' | 'Pendiente' | 'Rechazada'>; // Confirmación individual por alumno
 }
 
@@ -164,6 +166,8 @@ export interface SolicitarAsesoriaPayload {
   modalidad: 'Presencial' | 'Virtual';
   motivoDetalle: string;
   tipo?: 'INDIVIDUAL' | 'GRUPAL';
+  lugar?: string;
+  enlaceVirtual?: string;
   estudiantesIds?: string[];
   cupoMaximo?: number;
 }

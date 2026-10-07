@@ -11,7 +11,6 @@ import { DetalleTutoradoModal } from './components/DetalleTutoradoModal';
 import { AlumnoPortalView } from './components/AlumnoPortalView';
 import { CalendarioSesionesView } from './components/CalendarioSesionesView';
 import { TutoradosDashboard } from './components/TutoradosDashboard';
-import { VisualCalendarWidget } from './components/VisualCalendarWidget';
 import { ArchivosEvidenciasView } from './components/ArchivosEvidenciasView';
 import { NotasPersonalesView } from './components/NotasPersonalesView';
 import { MiPerfilView } from './components/MiPerfilView';
@@ -411,14 +410,6 @@ function AppContent() {
               {/* 2. Agenda (Calendario) */}
               {seccionActiva === 'calendario' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
-                  <VisualCalendarWidget
-                    citas={citas}
-                    rolActivo="TUTOR"
-                    tutorActivo={tutorActivo}
-                    estudianteActivo={estudianteActivo}
-                    catalogoEstudiantes={catalogoEstudiantes}
-                  />
-
                   <CalendarioSesionesView
                     rolActivo="TUTOR"
                     tutorActivo={tutorActivo}
@@ -457,14 +448,6 @@ function AppContent() {
               {/* 2. Mis Reuniones */}
               {seccionActiva === 'calendario' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
-                  <VisualCalendarWidget
-                    citas={citas}
-                    rolActivo="ALUMNO"
-                    tutorActivo={tutorActivo}
-                    estudianteActivo={estudianteActivo}
-                    catalogoEstudiantes={catalogoEstudiantes}
-                  />
-
                   <CalendarioSesionesView
                     rolActivo="ALUMNO"
                     tutorActivo={tutorActivo}
