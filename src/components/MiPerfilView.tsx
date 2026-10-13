@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { RolUsuario, EstadisticasPersistencia } from '../types/tutoria';
+import { EstadisticasPersistencia } from '../types/tutoria';
 import { tutoriaService } from '../services/tutoriaService';
 import { AvatarWithFallback } from './AvatarWithFallback';
-import { UatHeraldicSeal, UatCorporateLogo } from './UatLogo';
+import { UatHeraldicSeal } from './UatLogo';
 import {
   User,
   Mail,
@@ -12,31 +12,67 @@ import {
   MapPin,
   Hash,
   BookOpen,
-  ShieldCheck,
   Save,
   CheckCircle2,
   AlertCircle,
   LogOut,
-  Users,
-  Search,
   Lock,
-  ArrowRight,
   Database,
   Download,
   RefreshCw,
   Trash2,
-  KeyRound
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  Check,
+  Award
 } from 'lucide-react';
 
 interface MiPerfilViewProps {
   onLogout?: () => void;
 }
 
+// Catálogo de avatares académicos institucionales de alta calidad
+const AVATARES_PREDETERMINADOS = [
+  {
+    id: 'av-1',
+    label: 'Docente 1',
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'av-2',
+    label: 'Docente 2',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'av-3',
+    label: 'Docente 3',
+    url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=250&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'av-4',
+    label: 'Docente 4',
+    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=250&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'av-5',
+    label: 'Docente 5',
+    url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=250&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'av-6',
+    label: 'Docente 6',
+    url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=250&auto=format&fit=crop&q=80'
+  }
+];
+
 export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
-  const { sesion, actualizarPerfil, logout, usuariosRegistrados } = useAuth();
+  const { sesion, actualizarPerfil, logout } = useAuth();
   const usuario = sesion?.usuario;
 
+  // Estado del formulario
   const [nombre, setNombre] = useState(usuario?.nombre || '');
+  const [avatar, setAvatar] = useState(usuario?.avatar || '');
   const [telefono, setTelefono] = useState(usuario?.telefono || '');
   const [departamento, setDepartamento] = useState(usuario?.departamento || '');
   const [cubiculo, setCubiculo] = useState(usuario?.cubículo || '');
@@ -45,6 +81,12 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
   const [semestre, setSemestre] = useState<number>(usuario?.semestre || 1);
   const [passwordNueva, setPasswordNueva] = useState('');
 
+  // Selector de foto de perfil
+  const [tipoSeleccionFoto, setTipoSeleccionFoto] = useState<'galeria' | 'url' | 'subir'>('galeria');
+  const [urlPersonalizada, setUrlPersonalizada] = useState('');
+  const inputFileRef = useRef<HTMLInputElement>(null);
+
+  // Estados de retroalimentación
   const [guardando, setGuardando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [mensajeError, setMensajeError] = useState<string | null>(null);
@@ -55,6 +97,136 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
 
   // Modal de confirmación para gestión de BD
   const [modalConfirmDb, setModalConfirmDb] = useState<'reset' | 'clear' | null>(null);
+
+  const cargarStats = async () => {
+    const stats = await tutoriaService.getEstadisticasPersistencia();
+    setStatsPersistencia(stats);
+  };
+
+  useEffect(() => {
+    cargarStats();
+    const unsub = tutoriaService.subscribe(() => {
+      cargarStats();
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (usuario) {
+      setNombre(usuario.nombre);
+      setAvatar(usuario.avatar || '');
+      setTelefono(usuario.telefono || '');
+      setDepartamento(usuario.departamento || '');
+      setCubiculo(usuario.cubículo || '');
+      setMatricula(usuario.matricula || '');
+      setCarrera(usuario.carrera || '');
+      setSemestre(usuario.semestre || 1);
+      setUrlPersonalizada(usuario.avatar || '');
+    }
+  }, [usuario]);
+
+  if (!sesion || !usuario) return null;
+
+  // Manejador para carga local de imagen (convertida a Data URL base64)
+  const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setMensajeError('Por favor selecciona un archivo de imagen válido (JPG, PNG o WEBP).');
+      return;
+    }
+
+    if (file.size > 4 * 1024 * 1024) {
+      setMensajeError('La imagen no debe exceder 4 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAvatar(reader.result);
+        setUrlPersonalizada(reader.result);
+        setMensajeError(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAplicarUrl = () => {
+    if (!urlPersonalizada.trim()) return;
+    setAvatar(urlPersonalizada.trim());
+    setMensajeError(null);
+  };
+
+  const handleGuardarPerfil = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMensajeExito(null);
+    setMensajeError(null);
+
+    if (!nombre.trim()) {
+      setMensajeError('El nombre completo es obligatorio.');
+      return;
+    }
+
+    setGuardando(true);
+
+    try {
+      const avatarFinal = avatar.trim() || usuario.avatar;
+
+      // 1. Guardar en AuthContext y authService (token JWT, cuentas)
+      const res = await actualizarPerfil({
+        nombre: nombre.trim(),
+        avatar: avatarFinal,
+        telefono: telefono.trim(),
+        departamento: usuario.rol === 'TUTOR' ? departamento.trim() : undefined,
+        cubículo: usuario.rol === 'TUTOR' ? cubiculo.trim() : undefined,
+        matricula: usuario.rol === 'TUTORADO' ? matricula.trim() : undefined,
+        carrera: usuario.rol === 'TUTORADO' ? carrera.trim() : undefined,
+        semestre: usuario.rol === 'TUTORADO' ? semestre : undefined,
+        passwordNueva: passwordNueva.trim() ? passwordNueva.trim() : undefined
+      });
+
+      // 2. Persistir en tutoriaService para sincronizar catálogos y todas las vistas del sistema
+      if (usuario.rol === 'TUTOR') {
+        const tutorId = usuario.tutorProfileId || 'tutor-001';
+        await tutoriaService.actualizarTutor(tutorId, {
+          nombre: nombre.trim(),
+          avatar: avatarFinal,
+          departamento: departamento.trim(),
+          cubículo: cubiculo.trim()
+        });
+      } else {
+        const estId = usuario.estudianteProfileId || 'est-101';
+        await tutoriaService.actualizarEstudiante(estId, {
+          nombre: nombre.trim(),
+          avatar: avatarFinal,
+          carrera: carrera.trim(),
+          matricula: matricula.trim(),
+          semestre: semestre,
+          telefono: telefono.trim()
+        });
+      }
+
+      setGuardando(false);
+
+      if (!res.success) {
+        setMensajeError(res.message);
+        return;
+      }
+
+      setPasswordNueva('');
+      setMensajeExito('Tu perfil institucional se ha actualizado con éxito. Los cambios se reflejan en todo el sistema.');
+
+      // Auto ocultar mensaje tras 4 segundos
+      setTimeout(() => {
+        setMensajeExito(null);
+      }, 4000);
+    } catch {
+      setGuardando(false);
+      setMensajeError('Ocurrió un error al guardar los cambios de perfil. Inténtalo de nuevo.');
+    }
+  };
 
   const handleEjecutarAccionDb = async () => {
     if (modalConfirmDb === 'reset') {
@@ -70,561 +242,613 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
     setTimeout(() => setMensajeDb(null), 3000);
   };
 
-  const cargarStats = async () => {
-    const stats = await tutoriaService.getEstadisticasPersistencia();
-    setStatsPersistencia(stats);
-  };
-
-  useEffect(() => {
-    cargarStats();
-    const unsub = tutoriaService.subscribe(() => {
-      cargarStats();
-    });
-    return () => unsub();
-  }, []);
-
-  // Filtros de la Base de Usuarios (sólo visible para Tutor)
-  const [busquedaUsuario, setBusquedaUsuario] = useState('');
-  const [filtroRol, setFiltroRol] = useState<'TODOS' | RolUsuario>('TODOS');
-
-  useEffect(() => {
-    if (usuario) {
-      setNombre(usuario.nombre);
-      setTelefono(usuario.telefono || '');
-      setDepartamento(usuario.departamento || '');
-      setCubiculo(usuario.cubículo || '');
-      setMatricula(usuario.matricula || '');
-      setCarrera(usuario.carrera || '');
-      setSemestre(usuario.semestre || 1);
-    }
-  }, [usuario]);
-
-  if (!sesion || !usuario) return null;
-
-  const handleGuardarPerfil = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMensajeExito(null);
-    setMensajeError(null);
-    setGuardando(true);
-
-    const res = await actualizarPerfil({
-      nombre,
-      telefono,
-      departamento: usuario.rol === 'TUTOR' ? departamento : undefined,
-      cubículo: usuario.rol === 'TUTOR' ? cubiculo : undefined,
-      matricula: usuario.rol === 'TUTORADO' ? matricula : undefined,
-      carrera: usuario.rol === 'TUTORADO' ? carrera : undefined,
-      semestre: usuario.rol === 'TUTORADO' ? semestre : undefined,
-      passwordNueva: passwordNueva.trim() ? passwordNueva.trim() : undefined
-    });
-
-    setGuardando(false);
-    if (!res.success) {
-      setMensajeError(res.message);
-      return;
-    }
-
-    setPasswordNueva('');
-    setMensajeExito(res.message);
-  };
-
-  const usuariosFiltrados = usuariosRegistrados.filter((u) => {
-    const coincideRol = filtroRol === 'TODOS' || u.rol === filtroRol;
-    const q = busquedaUsuario.toLowerCase().trim();
-    const coincideTexto =
-      !q ||
-      u.nombre.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      (u.matricula && u.matricula.toLowerCase().includes(q)) ||
-      (u.departamento && u.departamento.toLowerCase().includes(q));
-    return coincideRol && coincideTexto;
-  });
-
-  const expDate = new Date(sesion.payload.exp * 1000).toLocaleString('es-MX', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  });
-
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Cabecera de Mi Perfil Institucional UAT */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <AvatarWithFallback
-            src={usuario.avatar}
-            alt={usuario.nombre}
-            className="w-16 h-16 rounded-2xl ring-2 ring-[#EE7402]/40 shadow-xs shrink-0"
-          />
-          <div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="font-semibold text-[#EE7402] dark:text-[#EE7402]">
-                {usuario.rol === 'TUTOR' ? 'Docente Tutor Institucional' : 'Alumno Tutorado'}
-              </span>
-              <span>&middot;</span>
-              <span className="font-mono">{usuario.id}</span>
-            </div>
-            <h1 className="font-heading font-bold text-xl sm:text-2xl text-slate-900 dark:text-white mt-0.5">
-              {usuario.nombre}
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              {usuario.email} &middot;{' '}
-              {usuario.rol === 'TUTOR'
-                ? `${usuario.departamento} (${usuario.cubículo})`
-                : `${usuario.carrera} (${usuario.matricula})`}
-            </p>
-          </div>
-        </div>
+      {/* ======================================================== */}
+      {/* 1. CABECERA ÚNICA, LIMPIA Y EJECUTIVA (SIN REPETICIONES)  */}
+      {/* ======================================================== */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs relative overflow-hidden">
+        {/* Barra de acento UAT superior */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-[#EE7402] via-[#FF9E3B] to-[#002B49]" />
 
-        <button
-          onClick={logout}
-          className="px-4 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 text-xs font-semibold flex items-center gap-2 self-start sm:self-auto transition-colors cursor-pointer whitespace-nowrap"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Cerrar Sesión Segura</span>
-        </button>
-      </div>
-
-      {/* Cuadrícula principal: Edición de Perfil (Izquierda) + Seguridad de la Cuenta (Derecha) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Formulario de Edición de Perfil */}
-        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center gap-2.5 pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
-            <div className="w-8 h-8 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
-              <User className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="font-heading font-bold text-base text-slate-900 dark:text-white">
-                Información de Mi Perfil Institucional
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Actualiza tus datos de contacto institucional y credenciales de acceso
-              </p>
-            </div>
-          </div>
-
-          {mensajeExito && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-              <span>{mensajeExito}</span>
-            </div>
-          )}
-
-          {mensajeError && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{mensajeError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleGuardarPerfil} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Correo Electrónico Institucional (Sólo lectura)
-                </label>
-                <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="email"
-                    disabled
-                    value={usuario.email}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Teléfono de Contacto
-                </label>
-                <div className="relative">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="tel"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    placeholder="+52 834 000 0000"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Actualizar Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="password"
-                    value={passwordNueva}
-                    onChange={(e) => setPasswordNueva(e.target.value)}
-                    placeholder="Dejar en blanco para conservar"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Campos del Tutor */}
-            {usuario.rol === 'TUTOR' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Facultad / Departamento Académico
-                  </label>
-                  <div className="relative">
-                    <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={departamento}
-                      onChange={(e) => setDepartamento(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Cubículo de Atención Tutorial
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={cubiculo}
-                      onChange={(e) => setCubiculo(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Campos del Alumno */}
-            {usuario.rol === 'TUTORADO' && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Matrícula Escolar
-                  </label>
-                  <div className="relative">
-                    <Hash className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={matricula}
-                      onChange={(e) => setMatricula(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Programa Académico / Carrera
-                  </label>
-                  <div className="relative">
-                    <BookOpen className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      value={carrera}
-                      onChange={(e) => setCarrera(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Semestre Activo
-                  </label>
-                  <select
-                    value={semestre}
-                    onChange={(e) => setSemestre(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((s) => (
-                      <option key={s} value={s}>
-                        {s}° Semestre
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 flex justify-end">
+        <div className="p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          {/* Identidad Principal: Avatar único interactivo + Información oficial */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            {/* Contenedor del Avatar único con botón de cambio rápido */}
+            <div className="relative group shrink-0">
+              <AvatarWithFallback
+                src={avatar || usuario.avatar}
+                alt={nombre || usuario.nombre}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl ring-4 ring-[#EE7402]/20 dark:ring-[#EE7402]/30 shadow-md object-cover"
+              />
               <button
-                type="submit"
-                disabled={guardando}
-                className="px-5 py-2.5 rounded-xl bg-[#EE7402] hover:bg-[#D96200] active:bg-[#BF5600] text-white font-heading font-semibold text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  setTipoSeleccionFoto('subir');
+                  inputFileRef.current?.click();
+                }}
+                className="absolute -bottom-1.5 -right-1.5 p-2 rounded-xl bg-[#EE7402] hover:bg-[#D96200] text-white shadow-md transition-transform hover:scale-110 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#EE7402]/50"
+                title="Cambiar fotografía de perfil"
+                aria-label="Cambiar fotografía de perfil"
               >
-                <Save className="w-4 h-4" />
-                <span>{guardando ? 'Guardando...' : 'Guardar Cambios de Perfil'}</span>
+                <Camera className="w-3.5 h-3.5" />
               </button>
             </div>
-          </form>
+
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EE7402]/10 text-[#EE7402] dark:bg-[#EE7402]/20 dark:text-[#FF9E3B] border border-[#EE7402]/25">
+                  <Award className="w-3.5 h-3.5" />
+                  <span>{usuario.rol === 'TUTOR' ? 'Docente Tutor Institucional' : 'Alumno Tutorado'}</span>
+                </span>
+
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  {usuario.id}
+                </span>
+
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Acreditación Activa UAT</span>
+                </span>
+              </div>
+
+              <h1 className="font-heading font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white tracking-tight">
+                {nombre || usuario.nombre}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-[#EE7402] shrink-0" />
+                  <span>{usuario.email}</span>
+                </span>
+
+                {usuario.rol === 'TUTOR' ? (
+                  <>
+                    <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&bull;</span>
+                    <span className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{departamento || usuario.departamento || 'Sin adscripción'}</span>
+                    </span>
+                    {cubiculo && (
+                      <>
+                        <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&bull;</span>
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{cubiculo}</span>
+                        </span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&bull;</span>
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{carrera || usuario.carrera}</span>
+                    </span>
+                    <span className="hidden sm:inline text-slate-300 dark:text-slate-700">&bull;</span>
+                    <span className="flex items-center gap-1.5 font-mono">
+                      <Hash className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{matricula || usuario.matricula}</span>
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Acciones de la Cabecera */}
+          <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+            <button
+              onClick={logout}
+              className="px-4 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer whitespace-nowrap shadow-2xs"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 2. CUADRÍCULA PRINCIPAL: FORMULARIO Y ACREDITACIÓN       */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ====================================================== */}
+        {/* COLUMNA IZQUIERDA: PERSONALIZACIÓN & EDICIÓN DE DATOS  */}
+        {/* ====================================================== */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-7 border border-slate-200/90 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                    Personalización del Perfil Institucional
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Modifica tu nombre, imagen de perfil y datos de contacto oficial
+                  </p>
+                </div>
+              </div>
+
+              <span className="text-[11px] font-semibold text-[#EE7402] bg-[#EE7402]/10 px-2.5 py-1 rounded-lg">
+                UAT 2026-1
+              </span>
+            </div>
+
+            {/* Notificación sutil de éxito */}
+            {mensajeExito && (
+              <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-2.5 text-xs text-emerald-800 dark:text-emerald-200 animate-in fade-in duration-150">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span className="font-medium">{mensajeExito}</span>
+              </div>
+            )}
+
+            {/* Notificación de error */}
+            {mensajeError && (
+              <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center gap-2.5 text-xs text-rose-800 dark:text-rose-200 animate-in fade-in duration-150">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                <span>{mensajeError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleGuardarPerfil} className="space-y-6">
+              {/* ================================================== */}
+              {/* SECCIÓN A: SELECCIÓN Y EDICIÓN DE FOTO DE PERFIL  */}
+              {/* ================================================== */}
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-[#EE7402]" />
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Fotografía de Perfil Institucional
+                    </span>
+                  </div>
+
+                  {/* Pestañas de modo de selección de avatar */}
+                  <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 dark:bg-slate-700/70 rounded-lg text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setTipoSeleccionFoto('galeria')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                        tipoSeleccionFoto === 'galeria'
+                          ? 'bg-white dark:bg-slate-900 text-[#EE7402] shadow-2xs font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
+                    >
+                      Galería
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoSeleccionFoto('subir')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                        tipoSeleccionFoto === 'subir'
+                          ? 'bg-white dark:bg-slate-900 text-[#EE7402] shadow-2xs font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
+                    >
+                      Subir Archivo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoSeleccionFoto('url')}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                        tipoSeleccionFoto === 'url'
+                          ? 'bg-white dark:bg-slate-900 text-[#EE7402] shadow-2xs font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
+                    >
+                      URL Web
+                    </button>
+                  </div>
+                </div>
+
+                {/* Opción 1: Galería de avatares predeterminados */}
+                {tipoSeleccionFoto === 'galeria' && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Selecciona un avatar académico profesional institucional:
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 pt-1">
+                      {AVATARES_PREDETERMINADOS.map((item) => {
+                        const esSeleccionado = avatar === item.url;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setAvatar(item.url);
+                              setUrlPersonalizada(item.url);
+                            }}
+                            className={`relative group rounded-xl p-1 transition-all cursor-pointer border ${
+                              esSeleccionado
+                                ? 'border-[#EE7402] bg-[#EE7402]/10 ring-2 ring-[#EE7402]/40'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                            }`}
+                          >
+                            <img
+                              src={item.url}
+                              alt={item.label}
+                              className="w-full aspect-square rounded-lg object-cover"
+                            />
+                            {esSeleccionado && (
+                              <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#EE7402] text-white flex items-center justify-center shadow-xs">
+                                <Check className="w-2.5 h-2.5" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Opción 2: Subir archivo desde el equipo */}
+                {tipoSeleccionFoto === 'subir' && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Sube una fotografía desde tu computadora o dispositivo móvil (JPG, PNG):
+                    </p>
+                    <input
+                      ref={inputFileRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSubirArchivo}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => inputFileRef.current?.click()}
+                        className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-[#EE7402] text-slate-800 dark:text-slate-200 text-xs font-semibold flex items-center gap-2 shadow-2xs hover:bg-[#EE7402]/5 transition-colors cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4 text-[#EE7402]" />
+                        <span>Seleccionar archivo de imagen</span>
+                      </button>
+
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Máximo 4 MB &middot; Recorte automático
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Opción 3: Ingresar URL directa */}
+                {tipoSeleccionFoto === 'url' && (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] text-slate-500 dark:text-slate-400">
+                      Ingresa el enlace directo a una imagen en la web:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={urlPersonalizada}
+                        onChange={(e) => setUrlPersonalizada(e.target.value)}
+                        placeholder="https://ejemplo.com/mi-foto.jpg"
+                        className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAplicarUrl}
+                        className="px-3.5 py-2 rounded-xl bg-[#EE7402] hover:bg-[#D96200] text-white text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ================================================== */}
+              {/* SECCIÓN B: NOMBRE COMPLETO Y CORREO                */}
+              {/* ================================================== */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Nombre Completo <span className="text-[#EE7402]">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      required
+                      value={nombre}
+                      onChange={(e) => setNombre(e.target.value)}
+                      placeholder="Ej. Dr. Roberto Mendoza Salinas"
+                      className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Correo Electrónico Institucional (Oficial UAT)
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="email"
+                      disabled
+                      value={usuario.email}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 cursor-not-allowed font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ================================================== */}
+              {/* SECCIÓN C: TELÉFONO Y CONTRASEÑA NUEVA             */}
+              {/* ================================================== */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Teléfono Institucional / Móvil
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="tel"
+                      value={telefono}
+                      onChange={(e) => setTelefono(e.target.value)}
+                      placeholder="+52 834 123 4567"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Actualizar Contraseña
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="password"
+                      value={passwordNueva}
+                      onChange={(e) => setPasswordNueva(e.target.value)}
+                      placeholder="Dejar en blanco para conservar actual"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ================================================== */}
+              {/* SECCIÓN D: CAMPOS DEPARTAMENTALES / ACADÉMICOS     */}
+              {/* ================================================== */}
+              {usuario.rol === 'TUTOR' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Facultad / Departamento Académico
+                    </label>
+                    <div className="relative">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={departamento}
+                        onChange={(e) => setDepartamento(e.target.value)}
+                        placeholder="Ingeniería en Sistemas Computacionales"
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Cubículo de Atención Tutorial
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={cubiculo}
+                        onChange={(e) => setCubiculo(e.target.value)}
+                        placeholder="Edificio B, Cubículo 204"
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {usuario.rol === 'TUTORADO' && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Matrícula Escolar
+                    </label>
+                    <div className="relative">
+                      <Hash className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={matricula}
+                        onChange={(e) => setMatricula(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Programa Académico / Carrera
+                    </label>
+                    <div className="relative">
+                      <BookOpen className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={carrera}
+                        onChange={(e) => setCarrera(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Semestre Activo
+                    </label>
+                    <select
+                      value={semestre}
+                      onChange={(e) => setSemestre(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
+                        <option key={s} value={s}>
+                          {s}° Semestre
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Botón de Guardar Cambios */}
+              <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Los cambios se sincronizan en tiempo real
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="px-6 py-2.5 rounded-xl bg-[#EE7402] hover:bg-[#D96200] active:bg-[#BF5600] text-white font-heading font-semibold text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50 hover:shadow-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{guardando ? 'Guardando Perfil...' : 'Guardar Cambios de Perfil'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
 
-        {/* Panel Derecho: Credencial Digital UAT + Seguridad de la Cuenta */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Tarjeta de Credencial Institucional UAT */}
+        {/* ====================================================== */}
+        {/* COLUMNA DERECHA: ACREDITACIÓN OFICIAL & SEGURIDAD     */}
+        {/* (SIN REPETIR LA FOTO NI EL NOMBRE DE LA CABECERA)      */}
+        {/* ====================================================== */}
+        <div className="lg:col-span-5 space-y-5">
+          {/* Tarjeta de Acreditación Institucional UAT (Diseño limpio y ejecutivo sin avatar repetido) */}
           <div
             style={{ backgroundColor: '#002B49' }}
-            className="rounded-2xl p-5 text-white border border-[#003D66] shadow-sm relative overflow-hidden"
+            className="rounded-2xl p-6 text-white border border-[#003D66] shadow-sm relative overflow-hidden"
           >
             {/* Resplandor decorativo naranja UAT */}
-            <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#EE7402]/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-12 -right-12 w-36 h-36 bg-[#EE7402]/20 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="flex items-center justify-between gap-4 pb-3 mb-3 border-b border-white/10">
+            <div className="flex items-center justify-between gap-4 pb-4 mb-4 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="shrink-0 p-1 rounded-full bg-white/10 border border-white/15">
-                  <UatHeraldicSeal size={38} textColor="light" showMotto={false} />
+                <div className="shrink-0 p-1.5 rounded-xl bg-white/10 border border-white/15">
+                  <UatHeraldicSeal size={36} textColor="light" showMotto={false} />
                 </div>
                 <div>
                   <span className="font-heading font-extrabold text-xs tracking-wider text-[#EE7402] block uppercase">
                     Universidad Autónoma de Tamaulipas
                   </span>
-                  <span className="text-[10px] text-slate-300 block">
-                    Sistema Institucional de Tutorías
+                  <span className="text-[11px] text-slate-300 block">
+                    Dirección de Tutorías Académicas
                   </span>
                 </div>
               </div>
 
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#EE7402] text-white">
-                {usuario.rol}
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-[#EE7402] text-white shadow-2xs">
+                CICLO 2026-1
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <AvatarWithFallback
-                src={usuario.avatar}
-                alt={usuario.nombre}
-                className="w-12 h-12 rounded-xl ring-2 ring-[#EE7402] shrink-0"
-              />
-              <div className="min-w-0">
-                <h3 className="font-heading font-bold text-sm text-white truncate">
-                  {usuario.nombre}
-                </h3>
-                <p className="text-[11px] text-slate-300 truncate">
-                  {usuario.rol === 'TUTOR' ? usuario.departamento : usuario.carrera}
-                </p>
-                <p className="text-[10px] font-mono text-[#EE7402] mt-0.5">
-                  {usuario.rol === 'TUTOR' ? `Cubículo: ${usuario.cubículo}` : `Matrícula: ${usuario.matricula}`}
-                </p>
+            {/* Datos de Acreditación Oficial */}
+            <div className="space-y-3 py-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300">Programa:</span>
+                <span className="font-semibold text-white">
+                  Sistema Institucional de Tutorías
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300">Folio de Registro:</span>
+                <span className="font-mono font-semibold text-[#EE7402]">
+                  UAT-TUT-{usuario.id.replace('usr-', '').toUpperCase()}-2026
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300">Estatus Institucional:</span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-700/50">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>Acreditado y Vigente</span>
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300">Sede de Adscripción:</span>
+                <span className="text-slate-200">
+                  Campus Ciudad Victoria / Zona Centro
+                </span>
               </div>
             </div>
 
-            <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-300 font-serif italic">
+            <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300 font-serif italic">
               <span>&ldquo;Verdad, Belleza, Probidad&rdquo;</span>
-              <span className="font-sans not-italic text-slate-400">Ciclo 2026-1</span>
+              <span className="font-sans not-italic font-mono text-[10px] text-slate-400">
+                SIT-UAT v2.6
+              </span>
             </div>
           </div>
 
-          {/* Panel de Seguridad y Estado de la Cuenta Institucional (Limpio, formal y sin exposición de tokens) */}
+          {/* Tarjeta Informativa de Acompañamiento Tutorial */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4" />
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-8 h-8 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
+                <BookOpen className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="font-heading font-bold text-base text-slate-900 dark:text-white">
-                  Seguridad de la Cuenta
-                </h2>
+                <h3 className="font-heading font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                  Acompañamiento Tutorial UAT
+                </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Acreditación oficial y estado de sesión
+                  Formación integral y seguimiento académico
                 </p>
               </div>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Sesión Cifrada</span>
-            </span>
-          </div>
+            <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Modalidad:</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {usuario.rol === 'TUTOR' ? 'Tutorías Individuales y Grupales' : 'Asesoría y Tutoría Continua'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Enfoque:</span>
+                  <span className="font-semibold text-[#EE7402]">
+                    Éxito y Permanencia Escolar
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Atención Tutorial:</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {usuario.cubículo ? `Cubículo: ${usuario.cubículo}` : 'Horario y Cubículo Institucional'}
+                  </span>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Rol Institucional:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {usuario.rol === 'TUTOR' ? 'Docente Tutor Acreditado' : 'Alumno Tutorado Matriculado'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Protocolo de Acceso:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  Autenticación en Segundo Plano (UAT)
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Canal de Comunicación:</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>Cifrado de Extremo a Extremo</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Vigencia de la Sesión:</span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {expDate}
-                </span>
+              <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 text-[11px] text-amber-900 dark:text-amber-200">
+                <p className="leading-relaxed">
+                  El Sistema Institucional de Tutorías de la UAT tiene como propósito guiar a los estudiantes en su formación integral, fomentando la excelencia y los valores universitarios.
+                </p>
               </div>
             </div>
-
-            <div className="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
-              <p className="font-semibold">Política de Privacidad y Manejo Seguro:</p>
-              <p className="text-amber-800/90 dark:text-amber-300/80 leading-relaxed">
-                Tus credenciales de autenticación institucional son administradas de forma confidencial en segundo plano. Nunca compartas tu contraseña con terceros.
-              </p>
-            </div>
-          </div>
           </div>
         </div>
       </div>
 
-      {/* Directorio de Usuarios Registrados: Sólo visible para el rol Docente / Tutor para pruebas y administración */}
-      {usuario.rol === 'TUTOR' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
-                <Users className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="font-heading font-bold text-base text-slate-900 dark:text-white">
-                  Base de Cuentas Institucionales UAT ({usuariosRegistrados.length})
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Panel docente para verificación de cuentas institucionales y simulación de acompañamiento
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={busquedaUsuario}
-                  onChange={(e) => setBusquedaUsuario(e.target.value)}
-                  placeholder="Buscar por nombre o correo..."
-                  className="pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
-                />
-              </div>
-
-              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                {(['TODOS', 'TUTOR', 'TUTORADO'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setFiltroRol(r)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-                      filtroRol === r
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs border border-slate-200 dark:border-slate-700'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    {r === 'TODOS' ? 'Todos' : r === 'TUTOR' ? 'Docentes' : 'Alumnos'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  <th className="py-2.5 px-3">Usuario</th>
-                  <th className="py-2.5 px-3">Correo Institucional</th>
-                  <th className="py-2.5 px-3">Rol</th>
-                  <th className="py-2.5 px-3">Adscripción / Matrícula</th>
-                  <th className="py-2.5 px-3 text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs">
-                {usuariosFiltrados.map((u) => {
-                  const esActual = u.id === usuario.id;
-                  const profileId = u.rol === 'TUTOR' ? u.tutorProfileId : u.estudianteProfileId;
-                  return (
-                    <tr
-                      key={u.id}
-                      className={`transition-colors ${
-                        esActual
-                          ? 'bg-[#EE7402]/5 dark:bg-[#EE7402]/10'
-                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
-                      }`}
-                    >
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2.5">
-                          <AvatarWithFallback
-                            src={u.avatar}
-                            alt={u.nombre}
-                            className="w-7 h-7 rounded-full shrink-0 ring-1 ring-[#EE7402]/30"
-                          />
-                          <span className="font-heading font-semibold text-slate-900 dark:text-white">
-                            {u.nombre}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 font-mono text-[11px]">
-                        {u.email}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span
-                          className={`font-semibold text-[11px] ${
-                            u.rol === 'TUTOR'
-                              ? 'text-[#EE7402] dark:text-[#EE7402]'
-                              : 'text-sky-700 dark:text-sky-400'
-                          }`}
-                        >
-                          {u.rol === 'TUTOR' ? 'Docente Tutor' : 'Alumno Tutorado'}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">
-                        {u.rol === 'TUTOR'
-                          ? u.departamento
-                          : `${u.matricula || 'Sin matrícula'} · ${u.carrera || ''}`}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        {esActual ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span>Sesión Activa</span>
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                            Registrado
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Panel de Persistencia de Datos y Respaldo Institucional (Sólo para Tutor / Administrador) */}
+      {/* ======================================================== */}
+      {/* 4. BASE DE DATOS Y PERSISTENCIA (SÓLO PARA TUTOR)        */}
+      {/* ======================================================== */}
       {usuario.rol === 'TUTOR' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -698,9 +922,9 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
           {/* Cuadrícula de Métricas de Almacenamiento */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Usuarios Registrados</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Registros del Sistema</span>
               <span className="font-heading font-bold text-lg text-slate-900 dark:text-white">
-                {statsPersistencia?.totalUsuarios ?? usuariosRegistrados.length}
+                {statsPersistencia?.totalUsuarios ?? 1}
               </span>
             </div>
 
@@ -734,7 +958,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
 
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
               <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Notas Personales</span>
-              <span className="font-heading font-bold text-lg text-purple-600 dark:text-purple-400">
+              <span className="font-heading font-bold text-purple-600 dark:text-purple-400">
                 {statsPersistencia?.totalNotas ?? 0}
               </span>
             </div>
@@ -750,47 +974,55 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
             if (e.target === e.currentTarget) setModalConfirmDb(null);
           }}
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl p-5 shadow-xl space-y-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                   modalConfirmDb === 'clear'
-                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600'
-                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600'
+                    ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                    : 'bg-[#EE7402]/15 text-[#EE7402]'
                 }`}
               >
-                <AlertCircle className="w-5 h-5" />
+                {modalConfirmDb === 'clear' ? <Trash2 className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
               </div>
               <div>
-                <h4 className="font-heading font-bold text-sm text-slate-900 dark:text-white">
-                  {modalConfirmDb === 'clear' ? 'Vaciar Base de Datos' : 'Restablecer Muestra'}
-                </h4>
+                <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                  {modalConfirmDb === 'clear'
+                    ? '¿Vaciar completamente la base de datos?'
+                    : '¿Restablecer datos de muestra institucionales?'}
+                </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {modalConfirmDb === 'clear'
-                    ? '¿Estás seguro de vaciar todos los datos? Comenzarás con el sistema limpio.'
-                    : '¿Deseas restablecer los datos oficiales de muestra de la UAT?'}
+                    ? 'Esta acción eliminará todos los registros y te permitirá iniciar una captura desde cero.'
+                    : 'Esta acción restaurará los tutorados, citas y formatos oficiales iniciales de la UAT.'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-900 dark:text-amber-200">
+              {modalConfirmDb === 'clear'
+                ? 'Se mantendrá tu usuario y credenciales actuales de sesión.'
+                : 'Se sincronizará en IndexedDB y LocalStorage.'}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setModalConfirmDb(null)}
-                className="px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleEjecutarAccionDb}
-                className={`px-4 py-2 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-white text-xs font-semibold transition-colors cursor-pointer ${
                   modalConfirmDb === 'clear'
                     ? 'bg-rose-600 hover:bg-rose-700'
                     : 'bg-[#EE7402] hover:bg-[#D96200]'
                 }`}
               >
-                {modalConfirmDb === 'clear' ? 'Sí, Vaciar' : 'Sí, Restablecer'}
+                {modalConfirmDb === 'clear' ? 'Sí, vaciar base' : 'Sí, restablecer'}
               </button>
             </div>
           </div>

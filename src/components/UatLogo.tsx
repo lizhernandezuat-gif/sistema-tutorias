@@ -10,16 +10,65 @@ export type UatLogoVariant =
   | 'compact'       // Isotipo / Escudo compacto para barras superiores o móviles
   | 'shield'        // Escudo institucional oficial
   | 'siglas'        // Siglas estilizadas UAT
-  | 'icon';         // Solo el escudo/ícono UAT
+  | 'icon'          // Solo el escudo/ícono UAT
+  | 'circular'      // Escudo oficial dentro de contenedor circular estético (rounded-full)
+  | 'circle';       // Alias para circular
 
 interface UatLogoProps {
   variant?: UatLogoVariant;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   textColor?: 'dark' | 'light' | 'auto';
   className?: string;
   showSubtitle?: boolean;
   showMotto?: boolean;
 }
+
+/**
+ * Logotipo Circular Oficial UAT
+ * Diseñado como contenedor circular (rounded-full) con fondo limpio contrastante,
+ * anillo sutil institucional naranja (#EE7402) y sombreado estético idéntico al de avatares de perfil.
+ */
+export const UatCircularLogo: React.FC<{
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | number;
+  className?: string;
+  border?: boolean;
+  alt?: string;
+}> = ({ size = 'md', className = '', border = true, alt = 'Escudo Oficial UAT' }) => {
+  const isCustomNumber = typeof size === 'number';
+  const sizeClasses = typeof size === 'string' ? {
+    xs: 'w-7 h-7 p-1 ring-1',
+    sm: 'w-8 h-8 p-1 ring-1.5',
+    md: 'w-10 h-10 p-1.5 ring-2',
+    lg: 'w-12 h-12 p-2 ring-2',
+    xl: 'w-16 h-16 p-2.5 ring-2',
+    '2xl': 'w-24 h-24 sm:w-28 sm:h-28 p-3 ring-4'
+  }[size] : '';
+
+  const inlineStyle: React.CSSProperties = isCustomNumber
+    ? {
+        width: `${size}px`,
+        height: `${size}px`,
+        padding: `${Math.max(4, Math.round(Number(size) * 0.1))}px`
+      }
+    : {};
+
+  return (
+    <div
+      style={inlineStyle}
+      className={`rounded-full bg-white flex items-center justify-center shrink-0 shadow-md select-none transition-all duration-200 ${
+        border ? 'ring-[#EE7402]/40 border border-slate-100 dark:border-slate-700' : ''
+      } ${sizeClasses} ${className}`}
+    >
+      <img
+        src={uatCrestImg}
+        alt={alt}
+        className="w-full h-full object-contain"
+        loading="eager"
+        decoding="async"
+      />
+    </div>
+  );
+};
 
 /**
  * Escudo Heráldico Circular Oficial de la UAT
@@ -153,7 +202,8 @@ export const UatLogo: React.FC<UatLogoProps> = ({
 }) => {
   // 1. Escudo heráldico oficial
   if (variant === 'seal' || variant === 'shield') {
-    const sealSizes = {
+    const sealSizes: Record<string, number> = {
+      xs: 28,
       sm: 40,
       md: 64,
       lg: 96,
@@ -162,7 +212,7 @@ export const UatLogo: React.FC<UatLogoProps> = ({
     };
     return (
       <UatHeraldicSeal
-        size={sealSizes[size]}
+        size={sealSizes[size] || 64}
         className={className}
         textColor={textColor}
         showMotto={showMotto}
@@ -172,40 +222,48 @@ export const UatLogo: React.FC<UatLogoProps> = ({
 
   // 2. Solo las siglas UAT
   if (variant === 'siglas') {
-    const siglasSize = size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : 'md';
+    const siglasSize = size === 'sm' || size === 'xs' ? 'sm' : size === 'lg' ? 'lg' : 'md';
     return <UatSiglasLogo size={siglasSize} className={className} />;
   }
 
   // 3. Ícono solo (Escudo UAT)
   if (variant === 'icon') {
-    const iconSize = {
+    const iconSize: Record<string, number> = {
+      xs: 24,
       sm: 32,
       md: 44,
       lg: 56,
       xl: 72,
       '2xl': 96
-    }[size];
+    };
+    const resolvedSize = iconSize[size] || 44;
     return (
       <div className={`shrink-0 flex items-center justify-center ${className}`}>
         <img
           src={uatCrestImg}
           alt="UAT"
-          style={{ width: iconSize, height: iconSize }}
+          style={{ width: resolvedSize, height: resolvedSize }}
           className="object-contain drop-shadow-xs"
         />
       </div>
     );
   }
 
-  // 4. Compacto para barras superiores / Navbar / Sidebar colapsado
+  // 4. Contenedor Circular Oficial UAT (Estilo foto de perfil / rounded-full)
+  if (variant === 'circular' || variant === 'circle') {
+    const circSize = size === '2xl' || size === 'xl' ? 'xl' : size === 'lg' ? 'lg' : size === 'xs' ? 'xs' : size === 'sm' ? 'sm' : 'md';
+    return <UatCircularLogo size={circSize} className={className} />;
+  }
+
+  // 5. Compacto para barras superiores / Navbar / Sidebar
   if (variant === 'compact') {
     return (
       <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
-        <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full bg-white flex items-center justify-center p-1 shadow-2xs ring-2 ring-[#EE7402]/40 border border-slate-100 dark:border-slate-700">
           <img
             src={uatCrestImg}
             alt="UAT"
-            className="w-full h-full object-contain drop-shadow-2xs"
+            className="w-full h-full object-contain"
           />
         </div>
 

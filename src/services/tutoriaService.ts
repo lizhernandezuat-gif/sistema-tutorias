@@ -16,8 +16,22 @@ import {
   EditarArchivoPayload,
   ActividadAsignada,
   CrearActividadPayload,
+  EditarActividadPayload,
+  EntregarActividadPayload,
+  RevisarEntregaPayload,
+  EntregaActividad,
+  DisponibilidadTutor,
+  PropuestaHorario,
+  GuardarDisponibilidadPayload,
+  CrearPropuestaHorarioPayload,
+  ResponderPropuestaHorarioPayload,
+  RegistrarAcuerdoSesionPayload,
   NotaPersonalItem,
-  EstadisticasPersistencia
+  CategoriaNotaPersonal,
+  TipoSeccionNota,
+  EstadisticasPersistencia,
+  EstadoPropuestaHorario,
+  TipoNotaSeguimiento
 } from '../types/tutoria';
 import { ASIGNACIONES_INICIALES, CATALOGO_ESTUDIANTES, TUTORES_DEMO } from '../data/mockData';
 import { dbStorage } from './dbStorage';
@@ -25,8 +39,10 @@ import { dbStorage } from './dbStorage';
 const STORAGE_KEY = 'sistema_tutorias_asignaciones_v2';
 const CITAS_STORAGE_KEY = 'sistema_tutorias_citas_v2';
 const ARCHIVOS_STORAGE_KEY = 'sistema_tutorias_archivos_v2';
-const ACTIVIDADES_STORAGE_KEY = 'sistema_tutorias_actividades_v2';
+const ACTIVIDADES_STORAGE_KEY = 'sistema_tutorias_actividades_v3';
 const NOTAS_STORAGE_KEY = 'sistema_tutorias_notas_personales_v2';
+const DISPONIBILIDAD_STORAGE_KEY = 'sistema_tutorias_disponibilidad_v3';
+const PROPUESTAS_STORAGE_KEY = 'sistema_tutorias_propuestas_v3';
 
 export const ARCHIVOS_INICIALES: ArchivoSistema[] = [
   {
@@ -69,8 +85,9 @@ export const ARCHIVOS_INICIALES: ArchivoSistema[] = [
 export const ACTIVIDADES_INICIALES: ActividadAsignada[] = [
   {
     id: 'act-001',
-    titulo: 'Entrega de Formato de Diagnóstico Inicial y Kardex',
+    titulo: 'Entrega de Formato de Diagnóstico Inicial y Kardex Escolar',
     descripcion: 'Descargar el formato institucional, llenarlo con las materias aprobadas/reprobadas y subir el PDF firmado.',
+    instruccionesDetalladas: '1. Descarga el formato institucional de diagnóstico adjunto.\n2. Completa tus datos generales, semestre en curso y asignaturas cursadas.\n3. Adjunta una copia digital de tu Kardex oficial descargado del portal UAT.\n4. Sube tu archivo en formato PDF antes de la fecha límite para su revisión y visto bueno.',
     fechaLimite: '2026-10-25',
     tutorId: 'tutor-001',
     tutorNombre: 'Dr. Roberto Mendoza Salinas',
@@ -81,18 +98,151 @@ export const ACTIVIDADES_INICIALES: ActividadAsignada[] = [
       dataUrl: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQAAAA...',
       tamano: '145 KB'
     },
-    fechaCreacion: '2026-10-01T08:00:00.000Z'
+    fechaCreacion: '2026-10-01T08:00:00.000Z',
+    entregas: [
+      {
+        id: 'ent-001',
+        actividadId: 'act-001',
+        estudianteId: 'est-101',
+        estudianteNombre: 'Ana Lucía Morales Rivera',
+        estudianteMatricula: '220300145',
+        fechaEntrega: '2026-10-04T12:30:00.000Z',
+        archivoAdjunto: {
+          nombre: 'Diagnostico_AnaMorales_2026.pdf',
+          dataUrl: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYKMDAwMDAwMDAxOCAwMDAwMCBuCjAwMDAwMDAwNjYAwMDAwIG4KMDAwMDAwMDExNSAwMDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA0L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc1CiUlRU9G',
+          tamano: '420 KB',
+          tipo: 'application/pdf'
+        },
+        comentariosEstudiante: 'Profesor, adjunto mi diagnóstico completo y la boleta actualizada del periodo anterior.',
+        estado: 'Revisada',
+        calificacion: '100/100',
+        retroalimentacionTutor: 'Excelente entrega Ana Lucía. Tu trayectoria regular está verificada en el sistema.',
+        fechaRevision: '2026-10-05T09:00:00.000Z'
+      }
+    ]
   },
   {
     id: 'act-002',
-    titulo: 'Plan de Regularización en Cálculo Vectorial',
+    titulo: 'Plan de Regularización en Cálculo Vectorial y Calendario de Asesorías',
     descripcion: 'Presentar el horario de estudio y calendario de asesorías para el examen extraordinario.',
+    instruccionesDetalladas: 'Elaborar un cronograma semanal con un mínimo de 4 horas de estudio guiado, especificando temas prioritarios (derivadas parciales, integrales múltiples) y firma de compromiso académico.',
     fechaLimite: '2026-10-20',
     tutorId: 'tutor-001',
     tutorNombre: 'Dr. Roberto Mendoza Salinas',
-    estudianteId: 'est-102', // Diego Alejandro
+    estudianteId: 'TODOS',
     estado: 'Pendiente',
-    fechaCreacion: '2026-10-02T11:00:00.000Z'
+    fechaCreacion: '2026-10-02T11:00:00.000Z',
+    entregas: [
+      {
+        id: 'ent-002',
+        actividadId: 'act-002',
+        estudianteId: 'est-102',
+        estudianteNombre: 'Diego Alejandro Vargas Peña',
+        estudianteMatricula: '220300189',
+        fechaEntrega: '2026-10-10T16:45:00.000Z',
+        archivoAdjunto: {
+          nombre: 'Cronograma_Calculo_DiegoVargas.pdf',
+          dataUrl: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYKMDAwMDAwMDAxOCAwMDAwMCBuCjAwMDAwMDAwNjYAwMDAwIG4KMDAwMDAwMDExNSAwMDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA0L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc1CiUlRU9G',
+          tamano: '280 KB',
+          tipo: 'application/pdf'
+        },
+        comentariosEstudiante: 'Profesor, aquí está mi propuesta de 6 horas de estudio semanal y solicitud de apoyo en asesorías.',
+        estado: 'Entregada' // Por calificar (azul/ámbar)
+      }
+    ]
+  },
+  {
+    id: 'act-003',
+    titulo: 'Cuestionario de Detección de Estilos de Aprendizaje (CHAEA)',
+    descripcion: 'Responder el test de estilos de aprendizaje para adaptar las estrategias pedagógicas del semestre.',
+    instruccionesDetalladas: '1. Responde con honestidad las 80 preguntas del instrumento institucional.\n2. Obtén tu gráfica de perfil (Activo, Reflexivo, Teórico, Pragmático).\n3. Sube la hoja de resultados en formato PDF o imagen legible.',
+    fechaLimite: '2026-10-06', // Fecha pasada para probar vencidas/cerradas
+    tutorId: 'tutor-001',
+    tutorNombre: 'Dr. Roberto Mendoza Salinas',
+    estudianteId: 'TODOS',
+    estado: 'Pendiente',
+    fechaCreacion: '2026-09-20T08:00:00.000Z',
+    entregas: []
+  },
+  {
+    id: 'act-004',
+    titulo: 'Proyecto Integrador de Tutoría: Plan de Vida y Carrera 2026',
+    descripcion: 'Elaboración del ensayo reflexivo de metas académicas, servicio social y titulación.',
+    instruccionesDetalladas: 'Desarrolla en un documento Word o PDF (máximo 4 cuartillas) tus metas profesionales a mediano plazo, plan de liberación de inglés y proyección de prácticas profesionales UAT.',
+    fechaLimite: '2026-11-20', // Fecha futura para programadas
+    tutorId: 'tutor-001',
+    tutorNombre: 'Dr. Roberto Mendoza Salinas',
+    estudianteId: 'TODOS',
+    estado: 'Pendiente',
+    fechaCreacion: '2026-10-10T09:00:00.000Z',
+    entregas: []
+  }
+];
+
+export const DISPONIBILIDADES_INICIALES: DisponibilidadTutor[] = [
+  {
+    tutorId: 'tutor-001',
+    diasLaborales: [1, 2, 3, 4, 5], // Lunes a Viernes
+    bloques: [
+      {
+        diaSemana: 1, // Lunes
+        horaInicio: '09:00',
+        horaFin: '13:00',
+        modalidad: 'Presencial',
+        activo: true
+      },
+      {
+        diaSemana: 2, // Martes
+        horaInicio: '10:00',
+        horaFin: '14:00',
+        modalidad: 'Presencial',
+        activo: true
+      },
+      {
+        diaSemana: 3, // Miércoles
+        horaInicio: '09:00',
+        horaFin: '13:00',
+        modalidad: 'Ambas',
+        activo: true
+      },
+      {
+        diaSemana: 4, // Jueves
+        horaInicio: '11:00',
+        horaFin: '15:00',
+        modalidad: 'Virtual',
+        activo: true
+      },
+      {
+        diaSemana: 5, // Viernes
+        horaInicio: '09:00',
+        horaFin: '13:00',
+        modalidad: 'Presencial',
+        activo: true
+      }
+    ],
+    duracionSesionMinutos: 45,
+    modalidadPreferida: 'Híbrida',
+    lugarHabitual: 'Edificio B, Cubículo 204 (Facultad de Ingeniería)',
+    enlaceMeetHabitual: 'https://meet.google.com/uat-tut-2026',
+    ultimaActualizacion: '2026-10-01T08:00:00.000Z'
+  }
+];
+
+export const PROPUESTAS_INICIALES: PropuestaHorario[] = [
+  {
+    id: 'prop-001',
+    citaId: 'cita-001',
+    estudianteId: 'est-101',
+    estudianteNombre: 'Ana Lucía Morales Rivera',
+    estudianteMatricula: '220300145',
+    tutorId: 'tutor-001',
+    tema: 'Revisión de Avance en Proyecto de Titulación',
+    modalidad: 'Presencial',
+    fechaPropuesta: '2026-10-15',
+    horaPropuesta: '10:00 AM',
+    motivoCambio: 'Se me empalma con la práctica de laboratorio de Redes y Comunicaciones a las 11:00 AM.',
+    estado: 'Pendiente',
+    fechaCreacion: '2026-10-06T15:20:00.000Z'
   }
 ];
 
@@ -158,6 +308,70 @@ export const CITAS_INICIALES: CitaAsesoria[] = [
   }
 ];
 
+export const NOTAS_INICIALES: NotaPersonalItem[] = [
+  {
+    id: 'nota-001',
+    titulo: 'Estrategias de estudio para cálculo vectorial',
+    categoria: 'Recordatorio',
+    tipoSeccion: 'personal',
+    texto: 'Revisar ejercicios resueltos de integrales múltiples y programar sesión de dudas antes del examen extraordinario. Preparar formulario resumen.',
+    fecha: '10 de octubre de 2026',
+    updatedAt: '2026-10-10T14:30:00.000Z',
+    fijada: true,
+    autorRol: 'TUTOR'
+  },
+  {
+    id: 'nota-002',
+    titulo: 'Revisión de avance curricular con Ana Lucía Morales',
+    categoria: 'Sesión Ordinaria',
+    tipoSeccion: 'seguimiento',
+    estudianteId: 'est-101',
+    estudianteNombre: 'Ana Lucía Morales Rivera',
+    estudianteMatricula: '220300145',
+    texto: 'Se revisó el expediente del semestre 7. Alumna con promedio de 9.4, candidata a beca de excelencia. Acuerda enviar documentación antes del 18 de octubre.',
+    fecha: '8 de octubre de 2026',
+    updatedAt: '2026-10-08T11:00:00.000Z',
+    fijada: true,
+    autorRol: 'TUTOR'
+  },
+  {
+    id: 'nota-003',
+    titulo: 'Duda sobre convalidación de servicio social',
+    categoria: 'Duda de Asesoría',
+    tipoSeccion: 'personal',
+    texto: 'Consultar con la secretaría académica si las horas de ayudantía de laboratorio acreditan como servicio social institucional o prácticas.',
+    fecha: '6 de octubre de 2026',
+    updatedAt: '2026-10-06T09:15:00.000Z',
+    fijada: false,
+    autorRol: 'TUTOR'
+  },
+  {
+    id: 'nota-004',
+    titulo: 'Canalización y regularización con Diego Vargas',
+    categoria: 'Seguimiento Académico',
+    tipoSeccion: 'seguimiento',
+    estudianteId: 'est-102',
+    estudianteNombre: 'Diego Alejandro Vargas Peña',
+    estudianteMatricula: '220300189',
+    texto: 'Se acordó esquema de tutoría de pares para cálculo y seguimiento quincenal. Diego se comprometió a entregar avances semanales de ejercicios.',
+    fecha: '4 de octubre de 2026',
+    updatedAt: '2026-10-04T16:20:00.000Z',
+    fijada: false,
+    autorRol: 'TUTOR'
+  },
+  {
+    id: 'nota-005',
+    titulo: 'Trámite de carta de no adeudo y titulación',
+    categoria: 'Trámite / Beca',
+    tipoSeccion: 'personal',
+    texto: 'Recordatorio para solicitar formato F-04 en ventanilla de servicios escolares y verificar liberación del módulo de inglés en plataforma.',
+    fecha: '2 de octubre de 2026',
+    updatedAt: '2026-10-02T10:00:00.000Z',
+    fijada: false,
+    autorRol: 'TUTOR'
+  }
+];
+
 export interface HttpLogEntry {
   id: string;
   timestamp: string;
@@ -176,6 +390,8 @@ class TutoriaBackendService {
   private archivos: ArchivoSistema[] = [];
   private actividades: ActividadAsignada[] = [];
   private notas: NotaPersonalItem[] = [];
+  private disponibilidades: DisponibilidadTutor[] = [];
+  private propuestasHorarios: PropuestaHorario[] = [];
   private httpLogs: HttpLogEntry[] = [];
   private listeners: Array<() => void> = [];
 
@@ -213,6 +429,11 @@ class TutoriaBackendService {
       const storedActividades = localStorage.getItem(ACTIVIDADES_STORAGE_KEY);
       if (storedActividades) {
         this.actividades = JSON.parse(storedActividades);
+        for (const initAct of ACTIVIDADES_INICIALES) {
+          if (!this.actividades.some(a => a.id === initAct.id)) {
+            this.actividades.push(initAct);
+          }
+        }
       } else {
         this.actividades = [...ACTIVIDADES_INICIALES];
         this.saveActividades();
@@ -221,15 +442,38 @@ class TutoriaBackendService {
       const storedNotas = localStorage.getItem(NOTAS_STORAGE_KEY);
       if (storedNotas) {
         this.notas = JSON.parse(storedNotas);
+        if (this.notas.length === 0) {
+          this.notas = [...NOTAS_INICIALES];
+          this.saveNotas();
+        }
       } else {
-        this.notas = [];
+        this.notas = [...NOTAS_INICIALES];
+        this.saveNotas();
+      }
+
+      const storedDisp = localStorage.getItem(DISPONIBILIDAD_STORAGE_KEY);
+      if (storedDisp) {
+        this.disponibilidades = JSON.parse(storedDisp);
+      } else {
+        this.disponibilidades = [...DISPONIBILIDADES_INICIALES];
+        this.saveDisponibilidad();
+      }
+
+      const storedProp = localStorage.getItem(PROPUESTAS_STORAGE_KEY);
+      if (storedProp) {
+        this.propuestasHorarios = JSON.parse(storedProp);
+      } else {
+        this.propuestasHorarios = [...PROPUESTAS_INICIALES];
+        this.savePropuestas();
       }
     } catch {
       this.asignaciones = [...ASIGNACIONES_INICIALES];
       this.citas = [...CITAS_INICIALES];
       this.archivos = [...ARCHIVOS_INICIALES];
       this.actividades = [...ACTIVIDADES_INICIALES];
-      this.notas = [];
+      this.notas = [...NOTAS_INICIALES];
+      this.disponibilidades = [...DISPONIBILIDADES_INICIALES];
+      this.propuestasHorarios = [...PROPUESTAS_INICIALES];
     }
   }
 
@@ -269,6 +513,20 @@ class TutoriaBackendService {
       const dbNotas = await dbStorage.getAll<NotaPersonalItem>('notas');
       if (dbNotas.length > 0) {
         this.notas = dbNotas;
+      }
+
+      const dbDisp = await dbStorage.getAll<DisponibilidadTutor & { id: string }>('disponibilidad');
+      if (dbDisp.length > 0) {
+        this.disponibilidades = dbDisp;
+      } else if (this.disponibilidades.length > 0) {
+        await dbStorage.putMany('disponibilidad', this.disponibilidades.map(d => ({ ...d, id: d.tutorId })));
+      }
+
+      const dbProp = await dbStorage.getAll<PropuestaHorario>('propuestas');
+      if (dbProp.length > 0) {
+        this.propuestasHorarios = dbProp;
+      } else if (this.propuestasHorarios.length > 0) {
+        await dbStorage.putMany('propuestas', this.propuestasHorarios);
       }
 
       this.notify();
@@ -324,7 +582,6 @@ class TutoriaBackendService {
     this.saveArchivosAsync().catch(() => {});
   }
 
-
   private saveActividades() {
     try {
       localStorage.setItem(ACTIVIDADES_STORAGE_KEY, JSON.stringify(this.actividades));
@@ -338,6 +595,22 @@ class TutoriaBackendService {
       localStorage.setItem(NOTAS_STORAGE_KEY, JSON.stringify(this.notas));
     } catch {}
     dbStorage.putMany('notas', this.notas).catch(() => {});
+    this.notify();
+  }
+
+  private saveDisponibilidad() {
+    try {
+      localStorage.setItem(DISPONIBILIDAD_STORAGE_KEY, JSON.stringify(this.disponibilidades));
+    } catch {}
+    dbStorage.putMany('disponibilidad', this.disponibilidades.map(d => ({ ...d, id: d.tutorId }))).catch(() => {});
+    this.notify();
+  }
+
+  private savePropuestas() {
+    try {
+      localStorage.setItem(PROPUESTAS_STORAGE_KEY, JSON.stringify(this.propuestasHorarios));
+    } catch {}
+    dbStorage.putMany('propuestas', this.propuestasHorarios).catch(() => {});
     this.notify();
   }
 
@@ -1030,6 +1303,20 @@ class TutoriaBackendService {
   }
 
   /**
+   * ENDPOINT: GET /api/citas
+   * Recupera todas las citas del sistema
+   */
+  public async getCitas(): Promise<ApiResponse<CitaAsesoria[]>> {
+    return {
+      success: true,
+      message: `Se recuperaron ${this.citas.length} citas registradas.`,
+      data: [...this.citas],
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
    * ENDPOINT: GET /api/archivos
    * Recupera archivos filtrados por tutorado, tutor o categoría
    */
@@ -1409,6 +1696,10 @@ class TutoriaBackendService {
    * ENDPOINT: POST /api/actividades/crear
    * Permite al Tutor crear y asignar una nueva actividad con archivos adjuntos
    */
+  /**
+   * ENDPOINT: POST /api/actividades/crear
+   * Permite al Tutor crear y asignar una nueva actividad (Estilo Teams) con instrucciones detalladas
+   */
   public async crearActividad(
     payload: CrearActividadPayload,
     tutor: { id: string; nombre: string }
@@ -1426,13 +1717,15 @@ class TutoriaBackendService {
       id: 'act-' + Date.now().toString(36),
       titulo: payload.titulo.trim(),
       descripcion: payload.descripcion.trim(),
+      instruccionesDetalladas: payload.instruccionesDetalladas?.trim(),
       fechaLimite: payload.fechaLimite,
       tutorId: tutor.id,
       tutorNombre: tutor.nombre,
       estudianteId: payload.estudianteId || 'TODOS',
       estado: 'Pendiente',
       archivoAdjunto: payload.archivoAdjunto,
-      fechaCreacion: new Date().toISOString()
+      fechaCreacion: new Date().toISOString(),
+      entregas: []
     };
 
     this.actividades.unshift(nuevaActividad);
@@ -1440,7 +1733,7 @@ class TutoriaBackendService {
 
     const okRes: ApiResponse<ActividadAsignada> = {
       success: true,
-      message: `Actividad "${nuevaActividad.titulo}" asignada exitosamente.`,
+      message: `Actividad "${nuevaActividad.titulo}" creada y asignada exitosamente.`,
       data: nuevaActividad,
       statusCode: 201,
       timestamp: new Date().toISOString()
@@ -1448,6 +1741,235 @@ class TutoriaBackendService {
 
     this.logHttp('POST', '/api/actividades/crear', 201, tutor.id, okRes, payload);
     return okRes;
+  }
+
+  /**
+   * ENDPOINT: PUT/PATCH /api/actividades/:id
+   * Permite al Tutor editar una actividad existente de forma completa
+   */
+  public async editarActividad(
+    payload: EditarActividadPayload,
+    tutorId: string
+  ): Promise<ApiResponse<ActividadAsignada>> {
+    const idx = this.actividades.findIndex(a => a.id === payload.actividadId);
+    if (idx === -1) {
+      return {
+        success: false,
+        message: 'Actividad no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const act = this.actividades[idx];
+    if (act.tutorId !== tutorId) {
+      return {
+        success: false,
+        message: 'No tienes autorización para editar esta actividad.',
+        statusCode: 403,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    act.titulo = payload.titulo.trim();
+    act.descripcion = payload.descripcion.trim();
+    if (payload.instruccionesDetalladas !== undefined) {
+      act.instruccionesDetalladas = payload.instruccionesDetalladas.trim();
+    }
+    act.fechaLimite = payload.fechaLimite;
+    if (payload.estudianteId) {
+      act.estudianteId = payload.estudianteId;
+    }
+    if (payload.archivoAdjunto !== undefined) {
+      act.archivoAdjunto = payload.archivoAdjunto;
+    }
+    act.fechaModificacion = new Date().toISOString();
+
+    this.saveActividades();
+
+    return {
+      success: true,
+      message: `Actividad "${act.titulo}" actualizada exitosamente.`,
+      data: act,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * ENDPOINT: DELETE /api/actividades/:id
+   * Elimina una actividad del sistema
+   */
+  public async eliminarActividad(
+    actividadId: string,
+    tutorId: string
+  ): Promise<ApiResponse<boolean>> {
+    const idx = this.actividades.findIndex(a => a.id === actividadId);
+    if (idx === -1) {
+      return {
+        success: false,
+        message: 'Actividad no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const act = this.actividades[idx];
+    if (act.tutorId !== tutorId) {
+      return {
+        success: false,
+        message: 'No tienes permisos para eliminar esta actividad.',
+        statusCode: 403,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    this.actividades.splice(idx, 1);
+    this.saveActividades();
+    await dbStorage.delete('actividades', actividadId);
+
+    return {
+      success: true,
+      message: 'Actividad eliminada correctamente.',
+      data: true,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * ENDPOINT: POST /api/actividades/:id/entregar
+   * Permite al alumno tutorado subir su entrega dentro de una actividad específica (Estilo Teams)
+   */
+  public async entregarActividad(
+    payload: EntregarActividadPayload
+  ): Promise<ApiResponse<EntregaActividad>> {
+    const idx = this.actividades.findIndex(a => a.id === payload.actividadId);
+    if (idx === -1) {
+      return {
+        success: false,
+        message: 'Actividad no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const act = this.actividades[idx];
+    if (!act.entregas) {
+      act.entregas = [];
+    }
+
+    // Verificar si ya entregó previamente
+    const entregaIdx = act.entregas.findIndex(e => e.estudianteId === payload.estudianteId);
+    let entregaResultado: EntregaActividad;
+
+    if (entregaIdx >= 0) {
+      // Actualizar entrega previa
+      act.entregas[entregaIdx] = {
+        ...act.entregas[entregaIdx],
+        archivoAdjunto: payload.archivoAdjunto,
+        comentariosEstudiante: payload.comentariosEstudiante?.trim(),
+        fechaEntrega: new Date().toISOString(),
+        estado: 'Entregada'
+      };
+      entregaResultado = act.entregas[entregaIdx];
+    } else {
+      // Crear nueva entrega
+      entregaResultado = {
+        id: 'ent-' + Date.now().toString(36),
+        actividadId: payload.actividadId,
+        estudianteId: payload.estudianteId,
+        estudianteNombre: payload.estudianteNombre,
+        estudianteMatricula: payload.estudianteMatricula,
+        fechaEntrega: new Date().toISOString(),
+        archivoAdjunto: payload.archivoAdjunto,
+        comentariosEstudiante: payload.comentariosEstudiante?.trim(),
+        estado: 'Entregada'
+      };
+      act.entregas.unshift(entregaResultado);
+    }
+
+    act.estado = 'Entregada';
+    this.saveActividades();
+
+    return {
+      success: true,
+      message: `Tarea entregada exitosamente para la actividad "${act.titulo}".`,
+      data: entregaResultado,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * ENDPOINT: PATCH /api/actividades/:id/entregas/:entregaId/revisar
+   * Permite al Tutor calificar, retroalimentar y cambiar estatus de una entrega
+   */
+  public async revisarEntregaActividad(
+    payload: RevisarEntregaPayload,
+    tutorId: string
+  ): Promise<ApiResponse<EntregaActividad>> {
+    const act = this.actividades.find(a => a.id === payload.actividadId);
+    if (!act) {
+      return {
+        success: false,
+        message: 'Actividad no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    if (act.tutorId !== tutorId) {
+      return {
+        success: false,
+        message: 'No autorizado para revisar entregas de esta actividad.',
+        statusCode: 403,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    if (!act.entregas) {
+      act.entregas = [];
+    }
+
+    const entrega = act.entregas.find(e => e.id === payload.entregaId);
+    if (!entrega) {
+      return {
+        success: false,
+        message: 'Entrega no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    entrega.retroalimentacionTutor = payload.retroalimentacionTutor.trim();
+    if (payload.calificacion !== undefined) {
+      entrega.calificacion = payload.calificacion.trim();
+    }
+    entrega.fechaRevision = new Date().toISOString();
+
+    // Asegurar que si se evalúa la entrega, su estado quede como 'Revisada' (salvo que sea 'Requiere Corrección')
+    if (payload.estado === 'Requiere Corrección') {
+      entrega.estado = 'Requiere Corrección';
+    } else {
+      entrega.estado = 'Revisada';
+    }
+
+    // Actualizar estado general de la actividad si todas están revisadas
+    const pendientes = act.entregas.filter(e => e.estado === 'Entregada' && !e.calificacion && !e.fechaRevision);
+    if (pendientes.length === 0 && act.entregas.length > 0) {
+      act.estado = 'Revisada';
+    }
+
+    this.saveActividades();
+
+    return {
+      success: true,
+      message: `Revisión guardada para ${entrega.estudianteNombre}. Estado: ${entrega.estado}.`,
+      data: entrega,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
   }
 
   /**
@@ -1479,14 +2001,432 @@ class TutoriaBackendService {
     };
   }
 
+  // ========================================================
+  // 2. MÓDULO DE NOTAS Y BITÁCORAS DE SEGUIMIENTO (PERSISTENTE)
+  // ========================================================
+
+  /**
+   * Registra una nota de seguimiento vinculada a un estudiante por su ID
+   */
+  public async agregarNotaPorEstudianteId(
+    tutorId: string,
+    estudianteId: string,
+    tipo: NotaSeguimiento['tipo'],
+    contenido: string,
+    citaId?: string
+  ): Promise<ApiResponse<NotaSeguimiento>> {
+    let asig = this.asignaciones.find(a => a.tutorId === tutorId && a.estudianteId === estudianteId);
+
+    if (!asig) {
+      // Si el tutorado aún no tiene asignación formal, creamos una para almacenar la nota
+      const estudiante = CATALOGO_ESTUDIANTES.find(e => e.id === estudianteId) || {
+        id: estudianteId,
+        matricula: '220300999',
+        nombre: 'Estudiante Tutorado',
+        email: 'alumno.uat@uat.edu.mx',
+        carrera: 'Ingeniería en Tecnologías de la Información',
+        semestre: 6,
+        promedio: 8.5,
+        telefono: '834-000-0000',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+      };
+
+      asig = {
+        id: 'asig-' + Date.now().toString(36),
+        tutorId,
+        estudianteId,
+        estudiante,
+        fechaAsignacion: new Date().toISOString(),
+        periodoEscolar: '2026-1',
+        estado: 'ACTIVO',
+        notas: []
+      };
+      this.asignaciones.unshift(asig);
+    }
+
+    const nuevaNota: NotaSeguimiento = {
+      id: 'nota-' + Date.now().toString(36),
+      fecha: new Date().toISOString(),
+      tipo,
+      contenido: citaId ? `[Sesión: ${citaId}] ${contenido}` : contenido,
+      autorId: tutorId
+    };
+
+    if (!asig.notas) asig.notas = [];
+    asig.notas.unshift(nuevaNota);
+    this.save();
+
+    return {
+      success: true,
+      message: 'Nota de seguimiento registrada con éxito en el expediente del tutorado.',
+      data: nuevaNota,
+      statusCode: 201,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Registra acuerdos u observaciones al concluir una sesión de tutoría
+   */
+  public async registrarAcuerdoSesion(
+    payload: RegistrarAcuerdoSesionPayload
+  ): Promise<ApiResponse<NotaSeguimiento>> {
+    const textoNota = payload.observaciones?.trim()
+      ? `Acuerdos: ${payload.acuerdos.trim()} | Observaciones: ${payload.observaciones.trim()}`
+      : payload.acuerdos.trim();
+
+    const resNota = await this.agregarNotaPorEstudianteId(
+      payload.tutorId,
+      payload.estudianteId,
+      payload.tipo,
+      textoNota,
+      payload.citaId
+    );
+
+    // Si viene vinculado a una cita, marcamos la cita como Completada
+    if (payload.citaId) {
+      const idxCita = this.citas.findIndex(c => c.id === payload.citaId);
+      if (idxCita >= 0) {
+        this.citas[idxCita].estado = 'Completada';
+        this.saveCitas();
+      }
+    }
+
+    return resNota;
+  }
+
+  /**
+   * Recupera todas las notas de seguimiento del tutor para vista general
+   */
+  public async getTodasLasNotasSeguimiento(tutorId: string): Promise<ApiResponse<Array<NotaSeguimiento & {
+    asignacionId: string;
+    estudianteId: string;
+    estudianteNombre: string;
+    estudianteMatricula: string;
+    estudianteCarrera: string;
+    periodoEscolar: string;
+  }>>> {
+    const misAsignaciones = this.asignaciones.filter(a => a.tutorId === tutorId);
+    const todas: Array<NotaSeguimiento & {
+      asignacionId: string;
+      estudianteId: string;
+      estudianteNombre: string;
+      estudianteMatricula: string;
+      estudianteCarrera: string;
+      periodoEscolar: string;
+    }> = [];
+
+    misAsignaciones.forEach(asig => {
+      if (asig.notas && asig.notas.length > 0) {
+        asig.notas.forEach(n => {
+          todas.push({
+            ...n,
+            asignacionId: asig.id,
+            estudianteId: asig.estudianteId,
+            estudianteNombre: asig.estudiante?.nombre || 'Tutorado',
+            estudianteMatricula: asig.estudiante?.matricula || '',
+            estudianteCarrera: asig.estudiante?.carrera || '',
+            periodoEscolar: asig.periodoEscolar
+          });
+        });
+      }
+    });
+
+    todas.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+    return {
+      success: true,
+      message: `Se recuperaron ${todas.length} notas de seguimiento.`,
+      data: todas,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Elimina una nota de seguimiento de la bitácora
+   */
+  public async eliminarNotaSeguimiento(
+    tutorId: string,
+    asignacionId: string,
+    notaId: string
+  ): Promise<ApiResponse<boolean>> {
+    const asig = this.asignaciones.find(a => a.id === asignacionId && a.tutorId === tutorId);
+    if (!asig || !asig.notas) {
+      return {
+        success: false,
+        message: 'Nota o asignación no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    asig.notas = asig.notas.filter(n => n.id !== notaId);
+    this.save();
+
+    return {
+      success: true,
+      message: 'Nota de seguimiento eliminada permanentemente.',
+      data: true,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // ========================================================
+  // 3. DISPONIBILIDAD SEMANAL Y PROPUESTAS DE HORARIO
+  // ========================================================
+
+  /**
+   * Recupera la disponibilidad semanal configurada por el tutor
+   */
+  public async getDisponibilidadTutor(tutorId: string): Promise<ApiResponse<DisponibilidadTutor>> {
+    let disp = this.disponibilidades.find(d => d.tutorId === tutorId);
+    if (!disp) {
+      // Default si aún no ha configurado
+      disp = {
+        tutorId,
+        diasLaborales: [1, 2, 3, 4, 5],
+        bloques: [
+          { diaSemana: 1, horaInicio: '09:00', horaFin: '13:00', modalidad: 'Presencial', activo: true },
+          { diaSemana: 2, horaInicio: '10:00', horaFin: '14:00', modalidad: 'Presencial', activo: true },
+          { diaSemana: 3, horaInicio: '09:00', horaFin: '13:00', modalidad: 'Ambas', activo: true },
+          { diaSemana: 4, horaInicio: '11:00', horaFin: '15:00', modalidad: 'Virtual', activo: true },
+          { diaSemana: 5, horaInicio: '09:00', horaFin: '13:00', modalidad: 'Presencial', activo: true }
+        ],
+        duracionSesionMinutos: 45,
+        modalidadPreferida: 'Híbrida',
+        lugarHabitual: 'Cubículo 204, Edificio B',
+        enlaceMeetHabitual: 'https://meet.google.com/uat-tut-2026',
+        ultimaActualizacion: new Date().toISOString()
+      };
+      this.disponibilidades.push(disp);
+      this.saveDisponibilidad();
+    }
+
+    return {
+      success: true,
+      message: 'Disponibilidad semanal del tutor recuperada.',
+      data: disp,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Guarda o actualiza la disponibilidad semanal del tutor
+   */
+  public async guardarDisponibilidadTutor(
+    payload: GuardarDisponibilidadPayload
+  ): Promise<ApiResponse<DisponibilidadTutor>> {
+    const idx = this.disponibilidades.findIndex(d => d.tutorId === payload.tutorId);
+    const dispActualizada: DisponibilidadTutor = {
+      tutorId: payload.tutorId,
+      diasLaborales: payload.diasLaborales,
+      bloques: payload.bloques,
+      duracionSesionMinutos: payload.duracionSesionMinutos || 45,
+      modalidadPreferida: payload.modalidadPreferida || 'Híbrida',
+      lugarHabitual: payload.lugarHabitual?.trim(),
+      enlaceMeetHabitual: payload.enlaceMeetHabitual?.trim(),
+      ultimaActualizacion: new Date().toISOString()
+    };
+
+    if (idx >= 0) {
+      this.disponibilidades[idx] = dispActualizada;
+    } else {
+      this.disponibilidades.push(dispActualizada);
+    }
+
+    this.saveDisponibilidad();
+
+    return {
+      success: true,
+      message: 'Tu horario de disponibilidad semanal ha sido guardado y publicado.',
+      data: dispActualizada,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Recupera propuestas de horarios alternativos
+   */
+  public async getPropuestasHorario(filtros?: {
+    tutorId?: string;
+    estudianteId?: string;
+    estado?: EstadoPropuestaHorario;
+  }): Promise<ApiResponse<PropuestaHorario[]>> {
+    let res = [...this.propuestasHorarios];
+
+    if (filtros?.tutorId) {
+      res = res.filter(p => p.tutorId === filtros.tutorId);
+    }
+    if (filtros?.estudianteId) {
+      res = res.filter(p => p.estudianteId === filtros.estudianteId);
+    }
+    if (filtros?.estado) {
+      res = res.filter(p => p.estado === filtros.estado);
+    }
+
+    res.sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
+
+    return {
+      success: true,
+      message: `Se recuperaron ${res.length} propuestas de horario.`,
+      data: res,
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Permite al tutorado (alumno) proponer un horario alternativo
+   */
+  public async crearPropuestaHorario(
+    payload: CrearPropuestaHorarioPayload
+  ): Promise<ApiResponse<PropuestaHorario>> {
+    if (!payload.fechaPropuesta || !payload.horaPropuesta || !payload.motivoCambio.trim()) {
+      return {
+        success: false,
+        message: 'Debe especificar la fecha, la hora propuesta y el motivo del cambio de horario.',
+        statusCode: 400,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const nuevaPropuesta: PropuestaHorario = {
+      id: 'prop-' + Date.now().toString(36),
+      citaId: payload.citaId,
+      estudianteId: payload.estudianteId,
+      estudianteNombre: payload.estudianteNombre,
+      estudianteMatricula: payload.estudianteMatricula,
+      tutorId: payload.tutorId,
+      tema: payload.tema,
+      modalidad: payload.modalidad,
+      fechaPropuesta: payload.fechaPropuesta,
+      horaPropuesta: payload.horaPropuesta,
+      motivoCambio: payload.motivoCambio.trim(),
+      estado: 'Pendiente',
+      fechaCreacion: new Date().toISOString()
+    };
+
+    this.propuestasHorarios.unshift(nuevaPropuesta);
+    this.savePropuestas();
+
+    return {
+      success: true,
+      message: 'Propuesta de horario alternativo enviada al tutor. Recibirás respuesta en tu portal.',
+      data: nuevaPropuesta,
+      statusCode: 201,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Permite al Tutor aceptar o rechazar una propuesta de horario alternativo
+   */
+  public async responderPropuestaHorario(
+    payload: ResponderPropuestaHorarioPayload
+  ): Promise<ApiResponse<{ propuesta: PropuestaHorario; citaActualizada?: CitaAsesoria }>> {
+    const idx = this.propuestasHorarios.findIndex(p => p.id === payload.propuestaId);
+    if (idx === -1) {
+      return {
+        success: false,
+        message: 'Propuesta de horario no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const propuesta = this.propuestasHorarios[idx];
+    if (propuesta.tutorId !== payload.tutorId) {
+      return {
+        success: false,
+        message: 'No tienes autorización para responder a esta propuesta.',
+        statusCode: 403,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    let citaActualizada: CitaAsesoria | undefined;
+
+    if (payload.accion === 'aceptar') {
+      propuesta.estado = 'Aceptada';
+      propuesta.motivoRespuestaTutor = payload.motivoRespuesta?.trim() || 'Horario alternativo aceptado.';
+      propuesta.fechaRespuesta = new Date().toISOString();
+
+      if (propuesta.citaId) {
+        // Actualizar la cita existente
+        const citaIdx = this.citas.findIndex(c => c.id === propuesta.citaId);
+        if (citaIdx >= 0) {
+          this.citas[citaIdx].fecha = propuesta.fechaPropuesta;
+          this.citas[citaIdx].hora = propuesta.horaPropuesta;
+          this.citas[citaIdx].modalidad = propuesta.modalidad;
+          this.citas[citaIdx].estado = 'Confirmada';
+          this.citas[citaIdx].motivoDetalle = `${this.citas[citaIdx].motivoDetalle || ''} [Reprogramada por acuerdo: ${propuesta.fechaPropuesta} ${propuesta.horaPropuesta}]`.trim();
+          citaActualizada = this.citas[citaIdx];
+        }
+      } else {
+        // Crear una nueva cita confirmada
+        const nuevaCita: CitaAsesoria = {
+          id: 'cita-' + Date.now().toString(36),
+          estudianteId: propuesta.estudianteId,
+          tutorId: propuesta.tutorId,
+          fecha: propuesta.fechaPropuesta,
+          hora: propuesta.horaPropuesta,
+          tema: propuesta.tema,
+          modalidad: propuesta.modalidad,
+          estado: 'Confirmada',
+          motivoDetalle: `Sesión agendada mediante propuesta de horario alternativo acordada.`,
+          tipo: 'INDIVIDUAL',
+          lugar: propuesta.modalidad === 'Presencial' ? 'Cubículo de Tutoría' : undefined,
+          enlaceVirtual: propuesta.modalidad === 'Virtual' ? 'https://meet.google.com/uat-tut-2026' : undefined
+        };
+        this.citas.unshift(nuevaCita);
+        citaActualizada = nuevaCita;
+      }
+      this.saveCitas();
+    } else {
+      propuesta.estado = 'Rechazada';
+      propuesta.motivoRespuestaTutor = payload.motivoRespuesta?.trim() || 'El horario solicitado no se encuentra disponible.';
+      propuesta.fechaRespuesta = new Date().toISOString();
+    }
+
+    this.savePropuestas();
+
+    return {
+      success: true,
+      message: payload.accion === 'aceptar'
+        ? `Propuesta aceptada. La sesión ha sido agendada en el calendario para el ${propuesta.fechaPropuesta} a las ${propuesta.horaPropuesta}.`
+        : 'Propuesta de horario rechazada.',
+      data: {
+        propuesta,
+        citaActualizada
+      },
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
+  }
+
   /**
    * ENDPOINT: GET /api/notas-personales
-   * Recupera notas personales del alumno (persistidas en base de datos)
+   * Recupera notas personales del usuario (persistidas en IndexedDB y LocalStorage)
    */
-  public async getNotasPersonales(alumnoId?: string): Promise<ApiResponse<NotaPersonalItem[]>> {
+  public async getNotasPersonales(filtro?: {
+    alumnoId?: string;
+    tutorId?: string;
+    tipoSeccion?: 'todas' | 'personal' | 'seguimiento';
+  } | string): Promise<ApiResponse<NotaPersonalItem[]>> {
     let res = [...this.notas];
-    if (alumnoId) {
-      res = res.filter(n => !n.alumnoId || n.alumnoId === alumnoId);
+    if (typeof filtro === 'string') {
+      res = res.filter(n => !n.alumnoId || n.alumnoId === filtro);
+    } else if (filtro) {
+      if (filtro.alumnoId) {
+        res = res.filter(n => !n.alumnoId || n.alumnoId === filtro.alumnoId);
+      }
+      if (filtro.tipoSeccion && filtro.tipoSeccion !== 'todas') {
+        res = res.filter(n => (n.tipoSeccion || 'personal') === filtro.tipoSeccion);
+      }
     }
     return {
       success: true,
@@ -1499,45 +2439,68 @@ class TutoriaBackendService {
 
   /**
    * ENDPOINT: POST /api/notas-personales
-   * Guarda o actualiza una nota personal de forma persistente
+   * Guarda o actualiza una nota personal de forma persistente en IndexedDB y LocalStorage
    */
   public async guardarNotaPersonal(
-    payload: Omit<NotaPersonalItem, 'id' | 'fecha'> & { id?: string | number }
+    payload: Partial<NotaPersonalItem> & { texto: string; id?: string | number }
   ): Promise<ApiResponse<NotaPersonalItem>> {
     const ahora = new Date().toLocaleDateString('es-ES', {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
     });
+    const ahoraIso = new Date().toISOString();
 
     let notaGuardada: NotaPersonalItem;
     if (payload.id) {
-      const idx = this.notas.findIndex(n => n.id === payload.id);
+      const idx = this.notas.findIndex(n => String(n.id) === String(payload.id));
       if (idx >= 0) {
         this.notas[idx] = {
           ...this.notas[idx],
-          texto: payload.texto,
-          categoria: payload.categoria,
-          alumnoId: payload.alumnoId
+          ...payload,
+          id: this.notas[idx].id,
+          categoria: (payload.categoria || this.notas[idx].categoria || 'General') as CategoriaNotaPersonal,
+          tipoSeccion: payload.tipoSeccion || this.notas[idx].tipoSeccion || (payload.estudianteId ? 'seguimiento' : 'personal'),
+          updatedAt: ahoraIso
         };
         notaGuardada = this.notas[idx];
       } else {
         notaGuardada = {
           id: payload.id,
-          texto: payload.texto,
-          categoria: payload.categoria,
+          titulo: payload.titulo?.trim() || '',
+          texto: payload.texto.trim(),
+          categoria: (payload.categoria || 'General') as CategoriaNotaPersonal,
+          tipoSeccion: payload.tipoSeccion || (payload.estudianteId ? 'seguimiento' : 'personal'),
           alumnoId: payload.alumnoId,
-          fecha: ahora
+          tutorId: payload.tutorId,
+          autorId: payload.autorId,
+          autorRol: payload.autorRol,
+          estudianteId: payload.estudianteId,
+          estudianteNombre: payload.estudianteNombre,
+          estudianteMatricula: payload.estudianteMatricula,
+          fijada: payload.fijada ?? false,
+          fecha: ahora,
+          updatedAt: ahoraIso
         };
         this.notas.unshift(notaGuardada);
       }
     } else {
       notaGuardada = {
-        id: Date.now(),
-        texto: payload.texto,
-        categoria: payload.categoria,
+        id: `nota-${Date.now()}`,
+        titulo: payload.titulo?.trim() || '',
+        texto: payload.texto.trim(),
+        categoria: (payload.categoria || 'General') as CategoriaNotaPersonal,
+        tipoSeccion: payload.tipoSeccion || (payload.estudianteId ? 'seguimiento' : 'personal'),
         alumnoId: payload.alumnoId,
-        fecha: ahora
+        tutorId: payload.tutorId,
+        autorId: payload.autorId,
+        autorRol: payload.autorRol,
+        estudianteId: payload.estudianteId,
+        estudianteNombre: payload.estudianteNombre,
+        estudianteMatricula: payload.estudianteMatricula,
+        fijada: payload.fijada ?? false,
+        fecha: ahora,
+        updatedAt: ahoraIso
       };
       this.notas.unshift(notaGuardada);
     }
@@ -1546,9 +2509,33 @@ class TutoriaBackendService {
 
     return {
       success: true,
-      message: 'Nota personal guardada exitosamente.',
+      message: 'Nota guardada exitosamente.',
       data: notaGuardada,
       statusCode: 201,
+      timestamp: ahoraIso
+    };
+  }
+
+  /**
+   * Fija o desfija una nota en el bloc de notas
+   */
+  public async toggleFijarNota(id: string | number): Promise<ApiResponse<NotaPersonalItem>> {
+    const idx = this.notas.findIndex(n => String(n.id) === String(id));
+    if (idx === -1) {
+      return {
+        success: false,
+        message: 'Nota no encontrada.',
+        statusCode: 404,
+        timestamp: new Date().toISOString()
+      };
+    }
+    this.notas[idx].fijada = !this.notas[idx].fijada;
+    this.saveNotas();
+    return {
+      success: true,
+      message: this.notas[idx].fijada ? 'Nota fijada al inicio.' : 'Nota desfijada.',
+      data: this.notas[idx],
+      statusCode: 200,
       timestamp: new Date().toISOString()
     };
   }
@@ -1557,9 +2544,11 @@ class TutoriaBackendService {
    * ENDPOINT: DELETE /api/notas-personales/:id
    */
   public async eliminarNotaPersonal(id: string | number): Promise<ApiResponse<boolean>> {
-    this.notas = this.notas.filter(n => n.id !== id);
+    this.notas = this.notas.filter(n => String(n.id) !== String(id));
     this.saveNotas();
-    await dbStorage.delete('notas', id);
+    try {
+      await dbStorage.delete('notas', id);
+    } catch {}
 
     return {
       success: true,
@@ -1591,7 +2580,7 @@ class TutoriaBackendService {
   }
 
   /**
-   * Retorna el catálogo dinámico de tutores persistido
+   * Retorna el catálogo dinámico de tutores persistido con personalizaciones aplicadas
    */
   public async getCatalogoTutores(): Promise<Tutor[]> {
     const extraKey = 'sistema_tutorias_tutores_extra_v1';
@@ -1601,13 +2590,124 @@ class TutoriaBackendService {
       if (raw) extra = JSON.parse(raw);
     } catch {}
 
-    const combinados = [...TUTORES_DEMO];
-    extra.forEach(t => {
-      if (!combinados.some(c => c.id === t.id)) {
+    // Combinar aplicando las modificaciones guardadas sobre los tutores existentes
+    const combinados = TUTORES_DEMO.map((t) => {
+      const match = extra.find((e) => e.id === t.id);
+      return match ? { ...t, ...match } : { ...t };
+    });
+    extra.forEach((t) => {
+      if (!combinados.some((c) => c.id === t.id)) {
         combinados.push(t);
       }
     });
     return combinados;
+  }
+
+  /**
+   * Actualiza los datos del tutor (nombre, avatar, cubículo, etc.) de forma persistente y reactiva
+   */
+  public async actualizarTutor(
+    tutorId: string,
+    cambios: Partial<Omit<Tutor, 'id' | 'rol'>>
+  ): Promise<Tutor> {
+    const extraKey = 'sistema_tutorias_tutores_extra_v1';
+    let extra: Tutor[] = [];
+    try {
+      const raw = localStorage.getItem(extraKey);
+      if (raw) extra = JSON.parse(raw);
+    } catch {}
+
+    const tutorDemo = TUTORES_DEMO.find((t) => t.id === tutorId);
+    if (tutorDemo) {
+      if (cambios.nombre !== undefined) tutorDemo.nombre = cambios.nombre;
+      if (cambios.avatar !== undefined) tutorDemo.avatar = cambios.avatar;
+      if (cambios.departamento !== undefined) tutorDemo.departamento = cambios.departamento;
+      if (cambios.cubículo !== undefined) tutorDemo.cubículo = cambios.cubículo;
+      if (cambios.email !== undefined) tutorDemo.email = cambios.email;
+    }
+
+    const idx = extra.findIndex((t) => t.id === tutorId);
+    const tutorActualizado: Tutor = {
+      ...(tutorDemo || {
+        id: tutorId,
+        nombre: cambios.nombre || 'Docente Tutor',
+        email: cambios.email || 'docente@uat.edu.mx',
+        departamento: cambios.departamento || 'Docente',
+        avatar: cambios.avatar || '',
+        rol: 'tutor' as const,
+        cubículo: cambios.cubículo || ''
+      }),
+      ...cambios
+    };
+
+    if (idx >= 0) {
+      extra[idx] = tutorActualizado;
+    } else {
+      extra.push(tutorActualizado);
+    }
+
+    try {
+      localStorage.setItem(extraKey, JSON.stringify(extra));
+      await dbStorage.put('tutores', tutorActualizado);
+    } catch {}
+
+    this.notify();
+    return tutorActualizado;
+  }
+
+  /**
+   * Actualiza los datos de un estudiante/tutorado de forma persistente y reactiva
+   */
+  public async actualizarEstudiante(
+    estudianteId: string,
+    cambios: Partial<Omit<EstudianteCatalogo, 'id'>>
+  ): Promise<EstudianteCatalogo> {
+    const extraKey = 'sistema_tutorias_estudiantes_extra_v1';
+    let extra: EstudianteCatalogo[] = [];
+    try {
+      const raw = localStorage.getItem(extraKey);
+      if (raw) extra = JSON.parse(raw);
+    } catch {}
+
+    const estDemo = CATALOGO_ESTUDIANTES.find((e) => e.id === estudianteId);
+    if (estDemo) {
+      if (cambios.nombre !== undefined) estDemo.nombre = cambios.nombre;
+      if (cambios.avatar !== undefined) estDemo.avatar = cambios.avatar;
+      if (cambios.carrera !== undefined) estDemo.carrera = cambios.carrera;
+      if (cambios.matricula !== undefined) estDemo.matricula = cambios.matricula;
+      if (cambios.semestre !== undefined) estDemo.semestre = cambios.semestre;
+      if (cambios.telefono !== undefined) estDemo.telefono = cambios.telefono;
+    }
+
+    const idx = extra.findIndex((e) => e.id === estudianteId);
+    const estActualizado: EstudianteCatalogo = {
+      ...(estDemo || {
+        id: estudianteId,
+        nombre: cambios.nombre || 'Estudiante',
+        email: cambios.email || 'alumno@uat.edu.mx',
+        carrera: cambios.carrera || 'Ingeniería',
+        matricula: cambios.matricula || '2026-000',
+        semestre: cambios.semestre || 1,
+        promedio: 9.0,
+        avatar: cambios.avatar || '',
+        telefono: cambios.telefono || ''
+      }),
+      ...cambios
+    };
+
+    if (idx >= 0) {
+      extra[idx] = estActualizado;
+    } else {
+      extra.push(estActualizado);
+    }
+
+    try {
+      localStorage.setItem(extraKey, JSON.stringify(extra));
+      await dbStorage.put('estudiantes', estActualizado);
+    } catch {}
+
+    this.notify();
+    return estActualizado;
   }
 
   /**

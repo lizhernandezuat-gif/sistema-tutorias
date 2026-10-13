@@ -12,7 +12,9 @@ import { AlumnoPortalView } from './components/AlumnoPortalView';
 import { CalendarioSesionesView } from './components/CalendarioSesionesView';
 import { TutoradosDashboard } from './components/TutoradosDashboard';
 import { ArchivosEvidenciasView } from './components/ArchivosEvidenciasView';
+import { ActividadesTeamsView } from './components/ActividadesTeamsView';
 import { NotasPersonalesView } from './components/NotasPersonalesView';
+import { BitacoraNotasView } from './components/BitacoraNotasView';
 import { MiPerfilView } from './components/MiPerfilView';
 import { AuthView } from './components/AuthView';
 import { ThemeProvider } from './context/ThemeContext';
@@ -31,7 +33,7 @@ import {
 } from 'lucide-react';
 
 function AppContent() {
-  const { logout: contextLogout, iniciarSesionDirecta } = useAuth();
+  const { sesion, logout: contextLogout, iniciarSesionDirecta } = useAuth();
 
   // ========================================================
   // 1. ELEVACIÓN DEL ESTADO DE AUTENTICACIÓN (State Hoisting)
@@ -52,6 +54,41 @@ function AppContent() {
   const [tutoradoSeleccionado, setTutoradoSeleccionado] = useState<AsignacionTutorado | null>(null);
   const [tutorados, setTutorados] = useState<AsignacionTutorado[]>([]);
   const [citas, setCitas] = useState<CitaAsesoria[]>([]);
+
+  // Sincronizar reactivamente el perfil del usuario activo al editarse
+  useEffect(() => {
+    if (sesion?.usuario) {
+      if (sesion.usuario.rol === 'TUTOR') {
+        setTutorActivo((prev) => ({
+          ...prev,
+          id: sesion.usuario.tutorProfileId || prev.id,
+          nombre: sesion.usuario.nombre,
+          email: sesion.usuario.email,
+          avatar: sesion.usuario.avatar || prev.avatar,
+          departamento: sesion.usuario.departamento || prev.departamento,
+          cubículo: sesion.usuario.cubículo || prev.cubículo
+        }));
+      } else {
+        setEstudianteActivo((prev) => ({
+          ...prev,
+          id: sesion.usuario.estudianteProfileId || prev.id,
+          nombre: sesion.usuario.nombre,
+          email: sesion.usuario.email,
+          avatar: sesion.usuario.avatar || prev.avatar,
+          carrera: sesion.usuario.carrera || prev.carrera,
+          matricula: sesion.usuario.matricula || prev.matricula,
+          semestre: sesion.usuario.semestre || prev.semestre
+        }));
+      }
+    }
+  }, [
+    sesion?.usuario?.nombre,
+    sesion?.usuario?.avatar,
+    sesion?.usuario?.departamento,
+    sesion?.usuario?.cubículo,
+    sesion?.usuario?.matricula,
+    sesion?.usuario?.carrera
+  ]);
 
   // Manejador centralizado para login exitoso y transición inmediata
   const handleLoginSuccess = (rol: 'tutor' | 'alumno') => {
@@ -96,10 +133,18 @@ function AppContent() {
     }
 
     const tuts = await tutoriaService.getCatalogoTutores();
-    if (tuts.length > 0) setTutores(tuts);
+    if (tuts.length > 0) {
+      setTutores(tuts);
+      const tAct = tuts.find((t) => t.id === tutorActivo.id);
+      if (tAct) setTutorActivo(tAct);
+    }
 
     const ests = await tutoriaService.getCatalogoEstudiantes();
-    if (ests.length > 0) setCatalogoEstudiantes(ests);
+    if (ests.length > 0) {
+      setCatalogoEstudiantes(ests);
+      const eAct = ests.find((e) => e.id === estudianteActivo.id);
+      if (eAct) setEstudianteActivo(eAct);
+    }
   };
 
   useEffect(() => {
@@ -430,6 +475,30 @@ function AppContent() {
                   />
                 </div>
               )}
+
+              {/* 4. Actividades y Tareas de Tutoría (Estilo Microsoft Teams) */}
+              {seccionActiva === 'actividades' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <ActividadesTeamsView
+                    rolActivo="TUTOR"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+
+              {/* 5. Bitácora de Notas y Acuerdos de Seguimiento (Tutor) */}
+              {seccionActiva === 'notas' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <BitacoraNotasView
+                    rolActivo="TUTOR"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
             </>
           )}
 
@@ -457,7 +526,19 @@ function AppContent() {
                 </div>
               )}
 
-              {/* 3. Mis Notas Personales (Confidencial) */}
+              {/* 3. Mis Actividades (Estilo Microsoft Teams) */}
+              {seccionActiva === 'actividades' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <ActividadesTeamsView
+                    rolActivo="ALUMNO"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+
+              {/* 4. Mis Notas Personales y Acuerdos */}
               {seccionActiva === 'notas' && (
                 <div className="animate-in fade-in duration-200">
                   <NotasPersonalesView />

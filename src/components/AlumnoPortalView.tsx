@@ -5,7 +5,9 @@ import {
   AsignacionTutorado,
   CitaAsesoria,
   SolicitarAsesoriaPayload,
-  NotaPersonalItem
+  NotaPersonalItem,
+  DisponibilidadTutor,
+  PropuestaHorario
 } from '../types/tutoria';
 import { tutoriaService } from '../services/tutoriaService';
 import { formatSemestre, getEstadoConfig } from '../utils/tutoriaUtils';
@@ -29,7 +31,9 @@ import {
   CalendarPlus,
   Download,
   Users,
-  Check
+  Check,
+  Inbox,
+  BookmarkCheck
 } from 'lucide-react';
 
 interface AlumnoPortalViewProps {
@@ -85,12 +89,36 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
   const [enviandoCita, setEnviandoCita] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
+  // Disponibilidad del Tutor y Propuestas de Horario
+  const [disponibilidadTutor, setDisponibilidadTutor] = useState<DisponibilidadTutor | null>(null);
+  const [propuestasHorario, setPropuestasHorario] = useState<PropuestaHorario[]>([]);
+  const [modalPropuestaAbierto, setModalPropuestaAbierto] = useState(false);
+  const [propuestaTema, setPropuestaTema] = useState('Revisión y Asesoría Académica');
+  const [propuestaFecha, setPropuestaFecha] = useState('2026-10-16');
+  const [propuestaHora, setPropuestaHora] = useState('10:00 AM');
+  const [propuestaModalidad, setPropuestaModalidad] = useState<'Presencial' | 'Virtual'>('Presencial');
+  const [propuestaMotivo, setPropuestaMotivo] = useState('');
+  const [enviandoPropuesta, setEnviandoPropuesta] = useState(false);
+  const [mensajePropuestaExito, setMensajePropuestaExito] = useState<string | null>(null);
+  const [mensajePropuestaError, setMensajePropuestaError] = useState<string | null>(null);
+
   const cargarDatosAlumno = async () => {
     const res = await tutoriaService.getMiTutoriaComoAlumno(estudianteActivo.id);
     if (res.success && res.data) {
       setAsignacion(res.data.asignacion);
       setTutor(res.data.tutor);
       setCitas(res.data.citas);
+      if (res.data.tutor?.id) {
+        const resDisp = await tutoriaService.getDisponibilidadTutor(res.data.tutor.id);
+        if (resDisp.success && resDisp.data) {
+          setDisponibilidadTutor(resDisp.data);
+        }
+      }
+    }
+
+    const resProp = await tutoriaService.getPropuestasHorario({ estudianteId: estudianteActivo.id });
+    if (resProp.success && resProp.data) {
+      setPropuestasHorario(resProp.data);
     }
   };
 
@@ -103,6 +131,42 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
     });
     return () => unsub();
   }, [estudianteActivo.id]);
+
+  const handleCrearPropuestaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tutor) return;
+    if (!propuestaFecha || !propuestaHora || !propuestaMotivo.trim()) {
+      setMensajePropuestaError('Por favor completa la fecha, la hora propuesta y el motivo del cambio.');
+      return;
+    }
+
+    setEnviandoPropuesta(true);
+    setMensajePropuestaError(null);
+    const res = await tutoriaService.crearPropuestaHorario({
+      estudianteId: estudianteActivo.id,
+      estudianteNombre: estudianteActivo.nombre,
+      estudianteMatricula: estudianteActivo.matricula,
+      tutorId: tutor.id,
+      tema: propuestaTema.trim(),
+      modalidad: propuestaModalidad,
+      fechaPropuesta: propuestaFecha,
+      horaPropuesta: propuestaHora,
+      motivoCambio: propuestaMotivo.trim()
+    });
+    setEnviandoPropuesta(false);
+
+    if (res.success) {
+      setMensajePropuestaExito('¡Tu propuesta de horario alternativo ha sido enviada a tu tutor oficial!');
+      setTimeout(() => {
+        setModalPropuestaAbierto(false);
+        setMensajePropuestaExito(null);
+        setPropuestaMotivo('');
+      }, 1500);
+      cargarDatosAlumno();
+    } else {
+      setMensajePropuestaError(res.message);
+    }
+  };
 
   const estadoCfg = asignacion ? getEstadoConfig(asignacion.estado) : null;
   const esRiesgo = asignacion?.estado === 'EN_RIESGO';
@@ -286,6 +350,53 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
                     <span>Agendar Cita / Solicitar Asesoría</span>
                   </button>
                 </div>
+
+                {/* BOTÓN SECUNDARIO: PROPONER HORARIO ALTERNATIVO */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setModalPropuestaAbierto(true)}
+                    className="w-full py-2.5 px-3 bg-orange-50/80 hover:bg-orange-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-[#EE7402] dark:text-[#EE7402] border border-[#EE7402]/30 rounded-[12px] text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Clock className="w-4 h-4" />
+                    <span>Proponer Horario Alternativo</span>
+                  </button>
+                </div>
+
+                {/* HORARIO DE DISPONIBILIDAD DEL TUTOR */}
+                {disponibilidadTutor && (
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      <span className="flex items-center gap-1.5 text-[#EE7402]">
+                        <Clock className="w-3.5 h-3.5" />
+                        Disponibilidad Semanal del Tutor
+                      </span>
+                      <span className="text-[10px] bg-[#EE7402]/10 text-[#EE7402] px-2 py-0.5 rounded-full font-semibold">
+                        {disponibilidadTutor.duracionMinutos} min / sesión
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                      <strong>Días de atención:</strong>{' '}
+                      {disponibilidadTutor.diasLaborales
+                        .map((d) => ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d])
+                        .join(', ')}
+                    </p>
+                    {disponibilidadTutor.bloques && disponibilidadTutor.bloques.length > 0 && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pt-1 border-t border-slate-200/60 dark:border-slate-750">
+                        {disponibilidadTutor.bloques.map((b, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][b.diaSemana]}:
+                            </span>
+                            <span className="font-mono text-[10px]">
+                              {b.horaInicio} - {b.horaFin} ({b.modalidad})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-xs text-[#64748B] dark:text-slate-500">
@@ -500,6 +611,81 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
               ) : (
                 <div className="text-center py-6 text-xs text-[#64748B] dark:text-slate-500">
                   No tienes sesiones agendadas para los próximos días.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tarjeta: Mis Propuestas de Horario Alternativo */}
+          <div className="bg-white dark:bg-slate-900 rounded-[16px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.05)] border border-slate-200/90 dark:border-slate-800 space-y-4">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-[#EE7402]" />
+                <h2 className="font-heading font-semibold text-sm text-slate-900 dark:text-white">
+                  Mis Propuestas de Horario Alternativo ({propuestasHorario.length})
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalPropuestaAbierto(true)}
+                className="text-xs text-[#EE7402] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nueva Propuesta</span>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {propuestasHorario.length > 0 ? (
+                propuestasHorario.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 text-xs space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            prop.estado === 'Aceptada'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300'
+                              : prop.estado === 'Rechazada'
+                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300'
+                          }`}
+                        >
+                          {prop.estado}
+                        </span>
+                        <span className="font-semibold text-slate-900 dark:text-white">
+                          {prop.tema}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[11px] text-[#EE7402] font-bold">
+                        {prop.fechaPropuesta} a las {prop.horaPropuesta}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/60 dark:border-slate-750">
+                      <strong>Motivo del cambio:</strong> {prop.motivoCambio}
+                    </p>
+
+                    {prop.comentariosTutor && (
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-orange-50/50 dark:bg-slate-800/80 p-2 rounded-lg border border-orange-200/50">
+                        <strong className="text-[#EE7402]">Respuesta del tutor:</strong> {prop.comentariosTutor}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-5 text-xs text-slate-400 dark:text-slate-500">
+                  No tienes propuestas de horario alternativo activas.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setModalPropuestaAbierto(true)}
+                    className="text-[#EE7402] hover:underline font-semibold cursor-pointer"
+                  >
+                    Haz clic aquí para proponer un horario a tu tutor
+                  </button>
+                  .
                 </div>
               )}
             </div>
@@ -835,6 +1021,171 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
                 Sí, Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Proponer Horario Alternativo */}
+      {modalPropuestaAbierto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalPropuestaAbierto(false);
+          }}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-[#002B49] to-[#003860] text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#EE7402] text-white flex items-center justify-center">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-sm text-white">
+                    Proponer Horario Alternativo
+                  </h3>
+                  <p className="text-xs text-orange-200">
+                    Solicitud especial de asesoría para: <strong>{tutor?.nombre}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalPropuestaAbierto(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearPropuestaSubmit} className="p-5 space-y-4">
+              {mensajePropuestaExito && (
+                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <p className="font-semibold">{mensajePropuestaExito}</p>
+                </div>
+              )}
+
+              {mensajePropuestaError && (
+                <div className="p-3 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <p className="font-semibold">{mensajePropuestaError}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                  Tema o Motivo de la Sesión <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={propuestaTema}
+                  onChange={(e) => setPropuestaTema(e.target.value)}
+                  placeholder="Ej. Dudas con proyecto final o revisión de avance"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                    Fecha Propuesta <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={propuestaFecha}
+                    onChange={(e) => setPropuestaFecha(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                    Hora Propuesta <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={propuestaHora}
+                    onChange={(e) => setPropuestaHora(e.target.value)}
+                    placeholder="Ej. 10:30 AM o 03:00 PM"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                  Modalidad Preferida
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPropuestaModalidad('Presencial')}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      propuestaModalidad === 'Presencial'
+                        ? 'border-[#EE7402] bg-[#EE7402]/10 text-[#EE7402]'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Presencial</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPropuestaModalidad('Virtual')}
+                    className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      propuestaModalidad === 'Virtual'
+                        ? 'border-[#EE7402] bg-[#EE7402]/10 text-[#EE7402]'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Virtual (Meet)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                  Motivo de la Propuesta / Cruce de Horario <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={propuestaMotivo}
+                  onChange={(e) => setPropuestaMotivo(e.target.value)}
+                  placeholder="Explica a tu tutor por qué necesitas este horario alternativo (ej. cruce con clase o trabajo de laboratorio)..."
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 resize-none"
+                  required
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalPropuestaAbierto(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={enviandoPropuesta}
+                  className="px-5 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {enviandoPropuesta ? (
+                    <span>Enviando propuesta...</span>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Enviar al Tutor</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

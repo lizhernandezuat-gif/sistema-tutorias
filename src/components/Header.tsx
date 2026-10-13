@@ -3,7 +3,7 @@ import { Tutor, EstudianteCatalogo, RolSimulado } from '../types/tutoria';
 import { useTheme } from '../context/ThemeContext';
 import { AvatarWithFallback } from './AvatarWithFallback';
 import { SeccionNavegacion } from './Sidebar';
-import { UatLogo, UatHeraldicSeal, UatCorporateLogo } from './UatLogo';
+import { UatLogo, UatHeraldicSeal, UatCorporateLogo, UatCircularLogo } from './UatLogo';
 import {
   Sun,
   Moon,
@@ -61,6 +61,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getSeccionTitulo = () => {
     switch (seccionActiva) {
+      case 'actividades':
+        return 'Actividades y Tareas';
       case 'tutorados':
         return rolActivo === 'TUTOR' ? 'Mis Tutorados' : 'Información del Tutor';
       case 'calendario':
@@ -73,33 +75,27 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Mi Perfil Institucional';
       case 'dashboard':
       default:
-        return rolActivo === 'TUTOR' ? 'Panel Principal' : 'Información del Tutor';
+        return 'Actividades y Tareas';
     }
   };
 
   const getSeccionDescripcion = () => {
     switch (seccionActiva) {
-      case 'tutorados':
-        return rolActivo === 'TUTOR'
-          ? 'Directorio institucional de tutorados asignados y seguimiento académico'
-          : 'Ficha de contacto del tutor docente, cubículo y solicitud de asesoría';
-      case 'calendario':
-        return rolActivo === 'TUTOR'
-          ? 'Agenda oficial de citas de asesoría presencial y virtual'
-          : 'Calendario de tus sesiones programadas de acompañamiento tutorial';
-      case 'archivos':
-        return rolActivo === 'TUTOR'
-          ? 'Formatos oficiales UAT, plan de tutoría y evidencias docentes'
-          : 'Entrega de constancias, tareas académicas y evidencias de tutoría';
-      case 'notas':
-        return 'Espacio confidencial para tus apuntes, dudas y recordatorios privados';
-      case 'perfil':
-        return 'Ficha institucional, datos académicos y seguridad de tu cuenta';
+      case 'actividades':
       case 'dashboard':
+        return '';
+      case 'tutorados':
+        return 'Directorio institucional de tutorados';
+      case 'calendario':
+        return 'Agenda oficial de citas de asesoría';
+      case 'archivos':
+        return 'Formatos oficiales y evidencias';
+      case 'notas':
+        return '';
+      case 'perfil':
+        return 'Datos de cuenta y perfil';
       default:
-        return rolActivo === 'TUTOR'
-          ? 'Métricas institucionales, avance del ciclo escolar y alertas de atención'
-          : 'Portal estudiantil de acompañamiento académico y asesorías';
+        return '';
     }
   };
 
@@ -107,35 +103,22 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 sticky top-0 z-30 shadow-2xs transition-colors duration-200">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex items-center justify-between gap-4">
-          {/* Lado Izquierdo: Logotipo UAT Compacto y Título de la Sección Activa */}
-          <div className="flex items-center gap-3.5 min-w-0">
-            {/* Isotipo UAT en Header */}
-            <div className="hidden sm:flex items-center pr-3 border-r border-slate-200 dark:border-slate-800 shrink-0">
-              <button
-                type="button"
-                onClick={() => setModalLogosAbierto(true)}
-                className="group flex items-center gap-1.5 p-1 -m-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
-                title="Ver logotipos oficiales y escudo institucional de la UAT"
-              >
-                <UatLogo variant="compact" size="sm" showSubtitle={false} />
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EE7402]/10 text-[#EE7402] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Ver logos
-                </span>
-              </button>
+          {/* Lado Izquierdo: Título de la Sección Activa Unificado y Limpio */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Logotipo circular institucional visible en vista móvil cuando no se muestra el sidebar de escritorio */}
+            <div className="md:hidden shrink-0">
+              <UatCircularLogo size="xs" className="ring-1.5 ring-[#EE7402]/40 shadow-xs" />
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="sm:hidden font-heading font-extrabold text-xs text-[#EE7402] tracking-wider">
-                  UAT
-                </span>
-                <h1 className="font-heading font-bold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight leading-tight truncate">
-                  {getSeccionTitulo()}
-                </h1>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden md:block truncate">
-                {getSeccionDescripcion()}
-              </p>
+              <h1 className="font-heading font-bold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight leading-tight truncate">
+                {getSeccionTitulo()}
+              </h1>
+              {getSeccionDescripcion() ? (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block truncate">
+                  {getSeccionDescripcion()}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -225,6 +208,18 @@ export const Header: React.FC<HeaderProps> = ({
                         <span>Mi Perfil Institucional</span>
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalLogosAbierto(true);
+                        setMenuPerfilAbierto(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-[#EE7402]" />
+                      <span>Logotipos Oficiales UAT</span>
+                    </button>
 
                     {onCerrarSesion && (
                       <button

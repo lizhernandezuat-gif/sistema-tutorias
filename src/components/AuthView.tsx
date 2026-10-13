@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UatHeraldicSeal, UatLogo } from './UatLogo';
+import { UatHeraldicSeal, UatLogo, UatCircularLogo } from './UatLogo';
 import {
   Lock,
   Eye,
@@ -161,7 +161,16 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
       {/* 2. COSTADO IZQUIERDO (DESKTOP): IDENTIDAD Y CAMPUS */}
       <div className="hidden md:flex flex-1 h-full flex-col justify-between p-8 lg:p-12 xl:p-16 relative z-10 select-none">
         <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 w-fit pointer-events-auto shadow-lg">
-          <UatLogo variant="compact" size="sm" textColor="light" />
+          <UatCircularLogo size="sm" border={false} />
+          <div className="flex items-center gap-1.5 leading-none">
+            <span className="font-heading font-black text-sm tracking-wider text-[#EE7402]">
+              UAT
+            </span>
+            <span className="text-white/40 text-xs font-light">|</span>
+            <span className="font-heading font-bold text-xs tracking-tight text-white">
+              Tutorías
+            </span>
+          </div>
         </div>
 
         <div className="max-w-xl">
@@ -192,10 +201,16 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
           className="w-full max-w-md md:max-w-none md:h-full backdrop-blur-xl md:backdrop-blur-2xl shadow-2xl p-6 sm:p-8 lg:p-10 flex flex-col justify-between text-white rounded-3xl md:rounded-none border border-white/30 md:border-l md:border-y-0 md:border-r-0 md:border-white/20 overflow-y-auto"
         >
           <div>
-            {/* Escudo Circular Oficial UAT */}
+            {/* Escudo Circular Oficial UAT (Estilo Circular con fondo blanco y anillo estético) */}
             <div className="flex flex-col items-center text-center pt-2 pb-3">
-              <div className="p-1 rounded-full bg-white/10 border border-white/30 shadow-lg mb-2.5">
-                <UatHeraldicSeal size={100} textColor="light" showMotto={false} />
+              <div className="mb-3 relative group">
+                {/* Halo decorativo de luz institucional */}
+                <div className="absolute -inset-1.5 rounded-full bg-white/20 blur-sm pointer-events-none" />
+                <UatCircularLogo
+                  size={104}
+                  className="relative z-10 shadow-xl ring-4 ring-white/30 border-2 border-white/60"
+                  alt="Escudo Oficial Circular de la Universidad Autónoma de Tamaulipas"
+                />
               </div>
 
               <div className="mt-1">

@@ -5,7 +5,11 @@ import {
   CitaAsesoria,
   RolSimulado,
   SolicitarAsesoriaPayload,
-  AgendarSesionGrupalPayload
+  AgendarSesionGrupalPayload,
+  DisponibilidadTutor,
+  PropuestaHorario,
+  BloqueDisponibilidad,
+  NotaSeguimiento
 } from '../types/tutoria';
 import { tutoriaService } from '../services/tutoriaService';
 import { formatSemestre } from '../utils/tutoriaUtils';
@@ -43,7 +47,11 @@ import {
   Award,
   Info,
   BookOpen,
-  AlertCircle
+  AlertCircle,
+  Inbox,
+  Send,
+  BookmarkCheck,
+  Sliders
 } from 'lucide-react';
 
 export type TipoVistaCalendario = 'semana' | 'mes' | 'dia' | 'ano';
@@ -114,6 +122,41 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
   const [participantesEdicionIds, setParticipantesEdicionIds] = useState<string[]>([]);
   const [guardandoParticipantes, setGuardandoParticipantes] = useState(false);
 
+  // Estados para Disponibilidad Semanal (Tutor)
+  const [disponibilidad, setDisponibilidad] = useState<DisponibilidadTutor | null>(null);
+  const [modalDisponibilidadAbierto, setModalDisponibilidadAbierto] = useState(false);
+  const [diasLaboralesConfig, setDiasLaboralesConfig] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [bloquesConfig, setBloquesConfig] = useState<BloqueDisponibilidad[]>([]);
+  const [duracionSesionConfig, setDuracionSesionConfig] = useState(45);
+  const [modalidadPreferidaConfig, setModalidadPreferidaConfig] = useState<'Presencial' | 'Virtual' | 'Híbrida'>('Híbrida');
+  const [lugarHabitualConfig, setLugarHabitualConfig] = useState('');
+  const [meetHabitualConfig, setMeetHabitualConfig] = useState('');
+  const [guardandoDisponibilidad, setGuardandoDisponibilidad] = useState(false);
+
+  // Estados para Propuestas de Horario Alternativo
+  const [propuestas, setPropuestas] = useState<PropuestaHorario[]>([]);
+  const [modalPropuestasTutorAbierto, setModalPropuestasTutorAbierto] = useState(false);
+  const [modalProponerHorarioAbierto, setModalProponerHorarioAbierto] = useState(false);
+  const [modalMisPropuestasAlumnoAbierto, setModalMisPropuestasAlumnoAbierto] = useState(false);
+  const [propuestaTemaForm, setPropuestaTemaForm] = useState('Revisión y Asesoría Académica');
+  const [propuestaFechaForm, setPropuestaFechaForm] = useState('');
+  const [propuestaHoraForm, setPropuestaHoraForm] = useState('10:00 AM');
+  const [propuestaModalidadForm, setPropuestaModalidadForm] = useState<'Presencial' | 'Virtual'>('Presencial');
+  const [propuestaMotivoForm, setPropuestaMotivoForm] = useState('');
+  const [citaOriginalPropuestaId, setCitaOriginalPropuestaId] = useState<string | undefined>(undefined);
+  const [enviandoPropuesta, setEnviandoPropuesta] = useState(false);
+  const [motivoRechazoForm, setMotivoRechazoForm] = useState('');
+  const [propuestaARechazarId, setPropuestaARechazarId] = useState<string | null>(null);
+
+  // Estados para Concluir Sesión y Registrar Acuerdos en Bitácora
+  const [modalAcuerdosSesionAbierto, setModalAcuerdosSesionAbierto] = useState(false);
+  const [citaParaAcuerdos, setCitaParaAcuerdos] = useState<CitaAsesoria | null>(null);
+  const [tipoAcuerdoForm, setTipoAcuerdoForm] = useState<NotaSeguimiento['tipo']>('Sesión Ordinaria');
+  const [acuerdosTextoForm, setAcuerdosTextoForm] = useState('');
+  const [observacionesConfidencialesForm, setObservacionesConfidencialesForm] = useState('');
+  const [marcarSesionCompletada, setMarcarSesionCompletada] = useState(true);
+  const [guardandoAcuerdo, setGuardandoAcuerdo] = useState(false);
+
   // Formateador seguro YYYY-MM-DD
   const formatIsoDate = (d: Date): string => {
     const year = d.getFullYear();
@@ -154,10 +197,35 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
     }
   };
 
+  // Cargar Disponibilidad y Propuestas
+  const cargarDisponibilidadYPropuestas = async () => {
+    const resDisp = await tutoriaService.getDisponibilidadTutor(tutorActivo.id);
+    if (resDisp.success && resDisp.data) {
+      setDisponibilidad(resDisp.data);
+      if (bloquesConfig.length === 0 && resDisp.data.bloques) {
+        setBloquesConfig(resDisp.data.bloques);
+        setDiasLaboralesConfig(resDisp.data.diasLaborales || [1, 2, 3, 4, 5]);
+        setDuracionSesionConfig(resDisp.data.duracionSesionMinutos || 45);
+        setModalidadPreferidaConfig(resDisp.data.modalidadPreferida || 'Híbrida');
+        setLugarHabitualConfig(resDisp.data.lugarHabitual || '');
+        setMeetHabitualConfig(resDisp.data.enlaceMeetHabitual || '');
+      }
+    }
+
+    const resProp = await tutoriaService.getPropuestasHorario(
+      rolActivo === 'TUTOR' ? { tutorId: tutorActivo.id } : { estudianteId: estudianteActivo.id }
+    );
+    if (resProp.success && resProp.data) {
+      setPropuestas(resProp.data);
+    }
+  };
+
   useEffect(() => {
     cargarCitas();
+    cargarDisponibilidadYPropuestas();
     const unsub = tutoriaService.subscribe(() => {
       cargarCitas();
+      cargarDisponibilidadYPropuestas();
     });
     return () => unsub();
   }, [rolActivo, tutorActivo.id, estudianteActivo.id]);
@@ -421,6 +489,123 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
     cargarCitas();
   };
 
+  // Guardar Disponibilidad Semanal del Tutor
+  const handleGuardarDisponibilidadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuardandoDisponibilidad(true);
+    const res = await tutoriaService.guardarDisponibilidadTutor({
+      tutorId: tutorActivo.id,
+      diasLaborales: diasLaboralesConfig,
+      bloques: bloquesConfig,
+      duracionSesionMinutos: duracionSesionConfig,
+      modalidadPreferida: modalidadPreferidaConfig,
+      lugarHabitual: lugarHabitualConfig,
+      enlaceMeetHabitual: meetHabitualConfig
+    });
+    setGuardandoDisponibilidad(false);
+    if (res.success) {
+      setDisponibilidad(res.data || null);
+      setModalDisponibilidadAbierto(false);
+      setMensajeExito('Disponibilidad semanal guardada y publicada.');
+      setTimeout(() => setMensajeExito(null), 3500);
+      cargarDisponibilidadYPropuestas();
+    }
+  };
+
+  // Responder a Propuestas de Horarios Alternativos (Tutor)
+  const handleAceptarPropuesta = async (propuestaId: string) => {
+    const res = await tutoriaService.responderPropuestaHorario({
+      propuestaId,
+      tutorId: tutorActivo.id,
+      accion: 'aceptar'
+    });
+    if (res.success) {
+      setMensajeExito(res.message);
+      setTimeout(() => setMensajeExito(null), 4000);
+      cargarCitas();
+      cargarDisponibilidadYPropuestas();
+    }
+  };
+
+  const handleRechazarPropuestaSubmit = async (propuestaId: string) => {
+    const res = await tutoriaService.responderPropuestaHorario({
+      propuestaId,
+      tutorId: tutorActivo.id,
+      accion: 'rechazar',
+      motivoRespuesta: motivoRechazoForm.trim() || undefined
+    });
+    setPropuestaARechazarId(null);
+    setMotivoRechazoForm('');
+    if (res.success) {
+      setMensajeExito('Propuesta de horario rechazada.');
+      setTimeout(() => setMensajeExito(null), 3000);
+      cargarDisponibilidadYPropuestas();
+    }
+  };
+
+  // Crear Propuesta de Horario Alternativo (Alumno)
+  const handleCrearPropuestaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!propuestaFechaForm || !propuestaHoraForm || !propuestaMotivoForm.trim()) {
+      setMensajeError('Completa la fecha, la hora propuesta y el motivo del cambio.');
+      return;
+    }
+    setEnviandoPropuesta(true);
+    const res = await tutoriaService.crearPropuestaHorario({
+      citaId: citaOriginalPropuestaId,
+      estudianteId: estudianteActivo.id,
+      estudianteNombre: estudianteActivo.nombre,
+      estudianteMatricula: estudianteActivo.matricula,
+      tutorId: tutorActivo.id,
+      tema: propuestaTemaForm.trim(),
+      modalidad: propuestaModalidadForm,
+      fechaPropuesta: propuestaFechaForm,
+      horaPropuesta: propuestaHoraForm,
+      motivoCambio: propuestaMotivoForm.trim()
+    });
+    setEnviandoPropuesta(false);
+    if (res.success) {
+      setModalProponerHorarioAbierto(false);
+      setPropuestaMotivoForm('');
+      setCitaOriginalPropuestaId(undefined);
+      setMensajeExito('Propuesta enviada con éxito a tu tutor.');
+      setTimeout(() => setMensajeExito(null), 4000);
+      cargarDisponibilidadYPropuestas();
+    } else {
+      setMensajeError(res.message);
+    }
+  };
+
+  // Concluir Sesión y Registrar Acuerdos en Bitácora (Tutor)
+  const handleGuardarAcuerdoSesionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!citaParaAcuerdos || !acuerdosTextoForm.trim()) {
+      return;
+    }
+    setGuardandoAcuerdo(true);
+    const alumnoId = citaParaAcuerdos.estudianteId === 'GRUPAL' || citaParaAcuerdos.estudianteId === 'TODOS'
+      ? (citaParaAcuerdos.estudiantesIds?.[0] || 'est-101')
+      : citaParaAcuerdos.estudianteId;
+
+    const res = await tutoriaService.registrarAcuerdoSesion({
+      tutorId: tutorActivo.id,
+      estudianteId: alumnoId,
+      citaId: citaParaAcuerdos.id,
+      tipo: tipoAcuerdoForm,
+      acuerdos: acuerdosTextoForm.trim(),
+      observaciones: observacionesConfidencialesForm.trim() || undefined
+    });
+    setGuardandoAcuerdo(false);
+    if (res.success) {
+      setModalAcuerdosSesionAbierto(false);
+      setCitaParaAcuerdos(null);
+      setCitaSeleccionadaDetalle(null);
+      setMensajeExito('Acuerdos de sesión registrados permanentemente en la bitácora escolar.');
+      setTimeout(() => setMensajeExito(null), 4000);
+      cargarCitas();
+    }
+  };
+
   // Colorimetría Oficial de Franjas de Eventos
   const getEstiloFranja = (cita: CitaAsesoria) => {
     const esCancelada = cita.estado === 'Cancelada';
@@ -454,51 +639,14 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
         {/* Barra superior de acento UAT */}
         <div className="h-1.5 bg-gradient-to-r from-[#EE7402] via-[#F59E0B] to-[#EE7402]" />
 
-        <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Lado Izquierdo: Identidad, Periodo y Navegación */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#EE7402] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                <CalendarIcon className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-[#EE7402]/10 text-[#EE7402] border border-[#EE7402]/20">
-                    Ciclo Escolar UAT 2026
-                  </span>
-                  {isToday(fechaSeleccionada) && (
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#EE7402] text-white shadow-xs flex items-center gap-1 animate-in fade-in">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                      HOY
-                    </span>
-                  )}
-                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    {rolActivo === 'TUTOR' ? tutorActivo.nombre : `Tutor: ${tutorActivo.nombre}`}
-                  </span>
-                </div>
-                <h2 className="font-heading font-bold text-lg sm:text-xl text-slate-900 dark:text-white capitalize tracking-tight">
-                  {vista === 'semana' ? (
-                    <>
-                      Semana del {diasSemanaActiva[0].getDate()} de {MESES[diasSemanaActiva[0].getMonth()]} al{' '}
-                      {diasSemanaActiva[6].getDate()} de {MESES[diasSemanaActiva[6].getMonth()]} {fechaSeleccionada.getFullYear()}
-                    </>
-                  ) : vista === 'mes' ? (
-                    `${MESES[fechaSeleccionada.getMonth()]} ${fechaSeleccionada.getFullYear()}`
-                  ) : vista === 'dia' ? (
-                    `${DIAS_SEMANA_LARGOS[(fechaSeleccionada.getDay() + 6) % 7]}, ${fechaSeleccionada.getDate()} de ${MESES[fechaSeleccionada.getMonth()]} ${fechaSeleccionada.getFullYear()}`
-                  ) : (
-                    `Calendario Escolar UAT ${fechaSeleccionada.getFullYear()}`
-                  )}
-                </h2>
-              </div>
-            </div>
-
-            {/* Controles de Navegación: Anterior / Hoy / Siguiente */}
-            <div className="flex items-center gap-1.5 self-start sm:self-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+        <div className="p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+          {/* Lado Izquierdo: Controles de Navegación Temporal y Periodo */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
               <button
                 type="button"
                 onClick={handleAnterior}
-                className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                 title="Periodo anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -527,16 +675,20 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               <button
                 type="button"
                 onClick={handleSiguiente}
-                className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                 title="Periodo siguiente"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
+
+            <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 capitalize tracking-tight px-1 select-none">
+              {MESES[fechaSeleccionada.getMonth()]} {fechaSeleccionada.getFullYear()}
+            </span>
           </div>
 
-          {/* Lado Derecho: Selector de Vistas + Exportar + Botón Agendar */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Lado Derecho: Selector de Vistas + Herramientas de Agenda + Botón Agendar */}
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             {/* SELECTOR DE VISTAS (SEMANA POR DEFECTO, MES, DÍA, AÑO) */}
             <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold">
               <button
@@ -636,6 +788,80 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Disponibilidad Semanal (Tutor) */}
+            {rolActivo === 'TUTOR' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (disponibilidad) {
+                      setDiasLaboralesConfig(disponibilidad.diasLaborales || [1, 2, 3, 4, 5]);
+                      setBloquesConfig(disponibilidad.bloques || []);
+                      setDuracionSesionConfig(disponibilidad.duracionSesionMinutos || 45);
+                      setModalidadPreferidaConfig(disponibilidad.modalidadPreferida || 'Híbrida');
+                      setLugarHabitualConfig(disponibilidad.lugarHabitual || '');
+                      setMeetHabitualConfig(disponibilidad.enlaceMeetHabitual || '');
+                    }
+                    setModalDisponibilidadAbierto(true);
+                  }}
+                  className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+                  title="Configurar horario de atención y disponibilidad semanal"
+                >
+                  <Clock className="w-3.5 h-3.5 text-[#EE7402]" />
+                  <span className="hidden sm:inline">Disponibilidad</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalPropuestasTutorAbierto(true)}
+                  className="relative px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+                  title="Bandeja de propuestas de horario enviadas por alumnos"
+                >
+                  <Inbox className="w-3.5 h-3.5 text-[#EE7402]" />
+                  <span className="hidden sm:inline">Propuestas</span>
+                  {propuestas.filter((p) => p.estado === 'Pendiente').length > 0 && (
+                    <span className="px-1.5 py-0.2 bg-[#EE7402] text-white rounded-full text-[10px] font-black animate-pulse">
+                      {propuestas.filter((p) => p.estado === 'Pendiente').length}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+
+            {/* Proponer Horario Alternativo (Alumno) */}
+            {rolActivo === 'ALUMNO' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPropuestaTemaForm('Revisión y Asesoría Académica');
+                    const manana = new Date();
+                    manana.setDate(manana.getDate() + 1);
+                    setPropuestaFechaForm(formatIsoDate(manana));
+                    setPropuestaHoraForm('10:00 AM');
+                    setPropuestaModalidadForm('Presencial');
+                    setPropuestaMotivoForm('');
+                    setModalProponerHorarioAbierto(true);
+                  }}
+                  className="px-3 py-2 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-amber-200 dark:border-amber-800"
+                  title="Proponer un horario alternativo que se ajuste a tus clases"
+                >
+                  <Send className="w-3.5 h-3.5 text-[#EE7402]" />
+                  <span className="hidden sm:inline">Proponer Horario</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalMisPropuestasAlumnoAbierto(true)}
+                  className="relative px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700"
+                  title="Consultar estado de mis propuestas"
+                >
+                  <Inbox className="w-3.5 h-3.5 text-[#EE7402]" />
+                  <span className="hidden sm:inline">Mis Propuestas ({propuestas.length})</span>
+                </button>
+              </>
+            )}
 
             {/* Botón Principal: Agendar Sesión */}
             <button
@@ -1892,6 +2118,27 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   </div>
                 )}
 
+              {/* Acción del Tutor: Concluir Sesión y Registrar Acuerdos en Bitácora */}
+              {rolActivo === 'TUTOR' && citaSeleccionadaDetalle.estado !== 'Cancelada' && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCitaParaAcuerdos(citaSeleccionadaDetalle);
+                      setTipoAcuerdoForm('Sesión Ordinaria');
+                      setAcuerdosTextoForm('');
+                      setObservacionesConfidencialesForm('');
+                      setMarcarSesionCompletada(true);
+                      setModalAcuerdosSesionAbierto(true);
+                    }}
+                    className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer text-xs"
+                  >
+                    <BookmarkCheck className="w-4 h-4 text-emerald-200" />
+                    <span>✍️ Concluir Sesión y Registrar Acuerdos en Bitácora</span>
+                  </button>
+                </div>
+              )}
+
               {/* Acciones del pie */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                 <button
@@ -2308,36 +2555,736 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
         </div>
       )}
 
-      {/* MODAL CONFIRMAR CANCELACIÓN */}
-      {modalCancelarAbierto && citaACancelar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-xl p-6 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-              <X className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
-                ¿Cancelar esta sesión?
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                La cita cambiará a estado Cancelada y el horario quedará liberado en la agenda institucional.
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-2 pt-2">
+      {/* ======================================================== */}
+      {/* MODAL 1: CONCLUIR SESIÓN Y REGISTRAR EN BITÁCORA         */}
+      {/* ======================================================== */}
+      {modalAcuerdosSesionAbierto && citaParaAcuerdos && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-6">
+            <div className="p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 text-white flex items-center justify-center font-bold">
+                  <BookmarkCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base">Registrar Acuerdos y Concluir Sesión</h3>
+                  <p className="text-xs text-emerald-100">Bitácora institucional del expediente del tutorado</p>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={() => setModalCancelarAbierto(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                onClick={() => setModalAcuerdosSesionAbierto(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
               >
-                Mantener Cita
+                <X className="w-5 h-5" />
               </button>
+            </div>
+
+            <form onSubmit={handleGuardarAcuerdoSesionSubmit} className="p-6 space-y-4 text-xs">
+              {/* Resumen de la sesión */}
+              <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/60 rounded-xl space-y-1">
+                <div className="flex items-center justify-between font-semibold text-slate-800 dark:text-slate-200">
+                  <span>Tema: {citaParaAcuerdos.tema}</span>
+                  <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400">
+                    {citaParaAcuerdos.fecha} &bull; {citaParaAcuerdos.hora}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Participante:{' '}
+                  <strong>
+                    {catalogoEstudiantes.find((e) => e.id === citaParaAcuerdos.estudianteId)?.nombre ||
+                      citaParaAcuerdos.estudianteId}
+                  </strong>
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Tipo de Registro *
+                </label>
+                <select
+                  value={tipoAcuerdoForm}
+                  onChange={(e) => setTipoAcuerdoForm(e.target.value as NotaSeguimiento['tipo'])}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="Sesión Ordinaria">Sesión Ordinaria</option>
+                  <option value="Acuerdo / Compromiso">Acuerdo / Compromiso Académico</option>
+                  <option value="Seguimiento Académico">Seguimiento Académico</option>
+                  <option value="Canalización">Canalización UAT</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Acuerdos y Compromisos Acordados *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={acuerdosTextoForm}
+                  onChange={(e) => setAcuerdosTextoForm(e.target.value)}
+                  placeholder="Detalla los compromisos contraídos por el tutorado (ej. Entregar avances de proyecto el 20 de octubre, asistir a asesoría de cálculo...)"
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Observaciones Confidenciales del Tutor (Opcional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={observacionesConfidencialesForm}
+                  onChange={(e) => setObservacionesConfidencialesForm(e.target.value)}
+                  placeholder="Anotaciones privadas del docente tutor..."
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="chkMarcarCompletada"
+                  checked={marcarSesionCompletada}
+                  onChange={(e) => setMarcarSesionCompletada(e.target.checked)}
+                  className="rounded text-emerald-600 accent-emerald-600"
+                />
+                <label htmlFor="chkMarcarCompletada" className="font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Marcar sesión como &quot;Completada&quot; en el calendario oficial
+                </label>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalAcuerdosSesionAbierto(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoAcuerdo}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{guardandoAcuerdo ? 'Guardando...' : 'Guardar Acuerdos en Bitácora'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 2: CONFIGURACIÓN DE DISPONIBILIDAD SEMANAL (TUTOR)  */}
+      {/* ======================================================== */}
+      {modalDisponibilidadAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-6">
+            <div className="p-5 bg-gradient-to-r from-[#002B49] to-[#003860] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#EE7402] text-white flex items-center justify-center font-bold">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base">Disponibilidad Semanal de Tutoría</h3>
+                  <p className="text-xs text-orange-200">Horario de trabajo y atención para asesorías UAT</p>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={handleConfirmarCancelar}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                onClick={() => setModalDisponibilidadAbierto(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
               >
-                Sí, Cancelar
+                <X className="w-5 h-5" />
               </button>
+            </div>
+
+            <form onSubmit={handleGuardarDisponibilidadSubmit} className="p-6 space-y-5 text-xs max-h-[80vh] overflow-y-auto">
+              {/* Días laborales */}
+              <div>
+                <label className="block font-bold text-slate-800 dark:text-slate-200 mb-2">
+                  Días de Atención Semanal:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { dia: 1, label: 'Lunes' },
+                    { dia: 2, label: 'Martes' },
+                    { dia: 3, label: 'Miércoles' },
+                    { dia: 4, label: 'Jueves' },
+                    { dia: 5, label: 'Viernes' },
+                    { dia: 6, label: 'Sábado' }
+                  ].map(({ dia, label }) => {
+                    const activo = diasLaboralesConfig.includes(dia);
+                    return (
+                      <button
+                        key={dia}
+                        type="button"
+                        onClick={() => {
+                          if (activo) {
+                            setDiasLaboralesConfig((prev) => prev.filter((d) => d !== dia));
+                            setBloquesConfig((prev) => prev.filter((b) => b.diaSemana !== dia));
+                          } else {
+                            setDiasLaboralesConfig((prev) => [...prev, dia].sort());
+                            setBloquesConfig((prev) => [
+                              ...prev,
+                              {
+                                diaSemana: dia,
+                                horaInicio: '09:00',
+                                horaFin: '13:00',
+                                modalidad: 'Presencial',
+                                activo: true
+                              }
+                            ]);
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+                          activo
+                            ? 'bg-[#EE7402]/10 border-[#EE7402] text-[#EE7402] font-bold shadow-2xs'
+                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <span>{label}</span>
+                        {activo && <Check className="w-3.5 h-3.5 text-[#EE7402]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Horarios por día activo */}
+              <div className="space-y-2.5">
+                <label className="block font-bold text-slate-800 dark:text-slate-200">
+                  Horarios y Modalidad por Día:
+                </label>
+                {diasLaboralesConfig.length > 0 ? (
+                  diasLaboralesConfig.map((diaNum) => {
+                    const diaNombre = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaNum];
+                    const bloque = bloquesConfig.find((b) => b.diaSemana === diaNum) || {
+                      diaSemana: diaNum,
+                      horaInicio: '09:00',
+                      horaFin: '13:00',
+                      modalidad: 'Presencial' as const,
+                      activo: true
+                    };
+
+                    const updateBloque = (nuevo: Partial<BloqueDisponibilidad>) => {
+                      setBloquesConfig((prev) => {
+                        const existe = prev.some((b) => b.diaSemana === diaNum);
+                        if (existe) {
+                          return prev.map((b) => (b.diaSemana === diaNum ? { ...b, ...nuevo } : b));
+                        }
+                        return [...prev, { ...bloque, ...nuevo }];
+                      });
+                    };
+
+                    return (
+                      <div
+                        key={diaNum}
+                        className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                      >
+                        <span className="font-bold text-slate-800 dark:text-slate-200 w-24">
+                          {diaNombre}
+                        </span>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 text-[10px]">De:</span>
+                            <input
+                              type="time"
+                              value={bloque.horaInicio}
+                              onChange={(e) => updateBloque({ horaInicio: e.target.value })}
+                              className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-400 text-[10px]">A:</span>
+                            <input
+                              type="time"
+                              value={bloque.horaFin}
+                              onChange={(e) => updateBloque({ horaFin: e.target.value })}
+                              className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono"
+                            />
+                          </div>
+
+                          <select
+                            value={bloque.modalidad}
+                            onChange={(e) => updateBloque({ modalidad: e.target.value as any })}
+                            className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+                          >
+                            <option value="Presencial">Presencial</option>
+                            <option value="Virtual">Virtual</option>
+                            <option value="Ambas">Híbrida / Ambas</option>
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Selecciona al menos un día laboral arriba.</p>
+                )}
+              </div>
+
+              {/* Ajustes generales */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Duración Estándar de Sesión
+                  </label>
+                  <select
+                    value={duracionSesionConfig}
+                    onChange={(e) => setDuracionSesionConfig(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                  >
+                    <option value={30}>30 minutos</option>
+                    <option value={45}>45 minutos (Recomendado UAT)</option>
+                    <option value={60}>60 minutos (1 hora)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Modalidad Preferente
+                  </label>
+                  <select
+                    value={modalidadPreferidaConfig}
+                    onChange={(e) => setModalidadPreferidaConfig(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                  >
+                    <option value="Híbrida">Híbrida (Presencial o Virtual)</option>
+                    <option value="Presencial">Solo Presencial</option>
+                    <option value="Virtual">Solo Virtual</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Cubículo o Lugar Habitual
+                  </label>
+                  <input
+                    type="text"
+                    value={lugarHabitualConfig}
+                    onChange={(e) => setLugarHabitualConfig(e.target.value)}
+                    placeholder="Cubículo 204, Edificio B"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Enlace de Google Meet Habitual
+                  </label>
+                  <input
+                    type="url"
+                    value={meetHabitualConfig}
+                    onChange={(e) => setMeetHabitualConfig(e.target.value)}
+                    placeholder="https://meet.google.com/uat-tut-2026"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalDisponibilidadAbierto(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoDisponibilidad}
+                  className="px-5 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  {guardandoDisponibilidad ? 'Guardando...' : 'Guardar y Publicar Horario'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 3: BANDEJA DE PROPUESTAS DE HORARIO (TUTOR)        */}
+      {/* ======================================================== */}
+      {modalPropuestasTutorAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-6">
+            <div className="p-5 bg-gradient-to-r from-[#EE7402] to-[#D96200] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 text-white flex items-center justify-center font-bold">
+                  <Inbox className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base">Propuestas de Horario de Tutorados</h3>
+                  <p className="text-xs text-orange-100">Solicitudes de reprogramación y horarios alternativos</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalPropuestasTutorAbierto(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs max-h-[75vh] overflow-y-auto">
+              {propuestas.length > 0 ? (
+                propuestas.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-900 dark:text-white text-sm">
+                            {prop.estudianteNombre}
+                          </span>
+                          {prop.estudianteMatricula && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              Mat: {prop.estudianteMatricula}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-[#EE7402] font-semibold block mt-0.5">
+                          Tema: {prop.tema}
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full self-start sm:self-auto ${
+                          prop.estado === 'Aceptada'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : prop.estado === 'Rechazada'
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse'
+                        }`}
+                      >
+                        {prop.estado}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Fecha Solicitada:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{prop.fechaPropuesta}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Hora Solicitada:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{prop.horaPropuesta}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Modalidad:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{prop.modalidad}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                        Motivo / Justificación del Alumno:
+                      </span>
+                      <p className="p-2.5 rounded-lg bg-orange-50/40 dark:bg-slate-900 text-slate-700 dark:text-slate-300 italic border border-orange-100 dark:border-slate-800">
+                        &quot;{prop.motivoCambio}&quot;
+                      </p>
+                    </div>
+
+                    {/* Si ya fue respondida, mostrar comentario */}
+                    {prop.motivoRespuestaTutor && (
+                      <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-300">
+                        <strong>Tu respuesta:</strong> {prop.motivoRespuestaTutor}
+                      </div>
+                    )}
+
+                    {/* Acciones para propuestas pendientes */}
+                    {prop.estado === 'Pendiente' && (
+                      <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-end gap-2">
+                        {propuestaARechazarId === prop.id ? (
+                          <div className="w-full space-y-2">
+                            <input
+                              type="text"
+                              value={motivoRechazoForm}
+                              onChange={(e) => setMotivoRechazoForm(e.target.value)}
+                              placeholder="Motivo del rechazo (ej. Horario ocupado en Consejo Técnico)..."
+                              className="w-full p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 text-xs"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPropuestaARechazarId(null)}
+                                className="px-3 py-1 text-slate-500 font-semibold"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRechazarPropuestaSubmit(prop.id)}
+                                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg cursor-pointer"
+                              >
+                                Confirmar Rechazo
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setPropuestaARechazarId(prop.id)}
+                              className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer"
+                            >
+                              Rechazar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAceptarPropuesta(prop.id)}
+                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Aceptar y Agendar en Calendario</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 text-slate-400">
+                  <Inbox className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p>No tienes propuestas de horario pendientes en este momento.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 4: PROPONER HORARIO ALTERNATIVO (ALUMNO)           */}
+      {/* ======================================================== */}
+      {modalProponerHorarioAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-6">
+            <div className="p-5 bg-gradient-to-r from-[#EE7402] to-[#D96200] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 text-white flex items-center justify-center font-bold">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base">Proponer Horario Alternativo</h3>
+                  <p className="text-xs text-orange-100">Solicitud directa a tu docente tutor</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalProponerHorarioAbierto(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearPropuestaSubmit} className="p-6 space-y-4 text-xs">
+              {/* Información del horario del tutor */}
+              <div className="p-3 bg-orange-50/60 dark:bg-slate-800 rounded-xl border border-orange-200/60 dark:border-slate-700 text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
+                <div className="font-bold text-[#EE7402] flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Horario habitual de atención de {tutorActivo.nombre}:</span>
+                </div>
+                <p>
+                  {disponibilidad?.bloques && disponibilidad.bloques.length > 0
+                    ? disponibilidad.bloques
+                        .map((b) => `${['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][b.diaSemana]} ${b.horaInicio}-${b.horaFin}`)
+                        .join(' | ')
+                    : 'Lunes a Viernes 09:00 AM - 01:00 PM'}
+                </p>
+                <p className="text-[10px] text-slate-500">
+                  Si este horario se te empalma con clases o prácticas, propón una fecha y hora alternativa a continuación.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Tema o Asunto de la Asesoría *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={propuestaTemaForm}
+                  onChange={(e) => setPropuestaTemaForm(e.target.value)}
+                  placeholder="Dudas sobre materias, avance de titulación, etc."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#EE7402]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Fecha Propuesta *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={propuestaFechaForm}
+                    onChange={(e) => setPropuestaFechaForm(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Hora Propuesta *
+                  </label>
+                  <select
+                    value={propuestaHoraForm}
+                    onChange={(e) => setPropuestaHoraForm(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                  >
+                    {[
+                      '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM',
+                      '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM',
+                      '04:00 PM', '05:00 PM', '06:00 PM'
+                    ].map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Modalidad Preferida *
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['Presencial', 'Virtual'] as const).map((mod) => (
+                    <button
+                      key={mod}
+                      type="button"
+                      onClick={() => setPropuestaModalidadForm(mod)}
+                      className={`p-2 rounded-xl border text-xs font-semibold cursor-pointer ${
+                        propuestaModalidadForm === mod
+                          ? 'border-[#EE7402] bg-[#EE7402]/10 text-[#EE7402] font-bold'
+                          : 'border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Motivo o Justificación del Cambio *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={propuestaMotivoForm}
+                  onChange={(e) => setPropuestaMotivoForm(e.target.value)}
+                  placeholder="Explica a tu tutor por qué necesitas este horario (ej. Se me empalma con la práctica de laboratorio de Redes a las 11:00 AM)..."
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#EE7402] resize-none"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setModalProponerHorarioAbierto(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={enviandoPropuesta}
+                  className="px-5 py-2 bg-[#EE7402] hover:bg-[#D96200] text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{enviandoPropuesta ? 'Enviando...' : 'Enviar Propuesta'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL 5: MIS PROPUESTAS DE HORARIO (ALUMNO)              */}
+      {/* ======================================================== */}
+      {modalMisPropuestasAlumnoAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-6">
+            <div className="p-5 bg-gradient-to-r from-[#002B49] to-[#003860] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#EE7402] text-white flex items-center justify-center font-bold">
+                  <Inbox className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base">Mis Propuestas de Horario</h3>
+                  <p className="text-xs text-orange-200">Historial de solicitudes enviadas a tu tutor</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalMisPropuestasAlumnoAbierto(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3 text-xs max-h-[70vh] overflow-y-auto">
+              {propuestas.length > 0 ? (
+                propuestas.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="font-bold text-slate-900 dark:text-white text-xs">
+                        {prop.tema}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          prop.estado === 'Aceptada'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : prop.estado === 'Rechazada'
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        }`}
+                      >
+                        {prop.estado}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                      <strong>Horario Solicitado:</strong> {prop.fechaPropuesta} a las {prop.horaPropuesta} ({prop.modalidad})
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 italic bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                      Motivo: &quot;{prop.motivoCambio}&quot;
+                    </p>
+
+                    {prop.motivoRespuestaTutor && (
+                      <div className="p-2 rounded-lg bg-orange-50 dark:bg-slate-800 text-[11px] text-[#EE7402] dark:text-orange-300 font-medium">
+                        <strong>Respuesta de tu tutor:</strong> {prop.motivoRespuestaTutor}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-400">
+                  <Inbox className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p>No has enviado propuestas de horario alternativo aún.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

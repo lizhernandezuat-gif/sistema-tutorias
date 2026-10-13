@@ -702,6 +702,9 @@ class AuthBackendService {
     if (cambios.nombre?.trim()) {
       user.nombre = cambios.nombre.trim();
     }
+    if (cambios.avatar?.trim()) {
+      user.avatar = cambios.avatar.trim();
+    }
     if (cambios.telefono !== undefined) {
       user.telefono = cambios.telefono.trim();
     }
@@ -713,6 +716,7 @@ class AuthBackendService {
       const tutorCat = TUTORES_DEMO.find((t) => t.id === user.tutorProfileId);
       if (tutorCat) {
         tutorCat.nombre = user.nombre;
+        if (user.avatar) tutorCat.avatar = user.avatar;
         tutorCat.departamento = user.departamento || tutorCat.departamento;
         tutorCat.cubículo = user.cubículo || tutorCat.cubículo;
         this.persistExtraTutor(tutorCat);
@@ -725,6 +729,7 @@ class AuthBackendService {
       const estCat = CATALOGO_ESTUDIANTES.find((e) => e.id === user.estudianteProfileId);
       if (estCat) {
         estCat.nombre = user.nombre;
+        if (user.avatar) estCat.avatar = user.avatar;
         estCat.matricula = user.matricula || estCat.matricula;
         estCat.carrera = user.carrera || estCat.carrera;
         estCat.semestre = user.semestre || estCat.semestre;

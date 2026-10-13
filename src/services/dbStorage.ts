@@ -6,7 +6,7 @@
  */
 
 const DB_NAME = 'SistemaTutorias_DB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export type StoreName =
   | 'usuarios'
@@ -16,7 +16,9 @@ export type StoreName =
   | 'citas'
   | 'archivos'
   | 'actividades'
-  | 'notas';
+  | 'notas'
+  | 'disponibilidad'
+  | 'propuestas';
 
 const STORES: StoreName[] = [
   'usuarios',
@@ -26,7 +28,9 @@ const STORES: StoreName[] = [
   'citas',
   'archivos',
   'actividades',
-  'notas'
+  'notas',
+  'disponibilidad',
+  'propuestas'
 ];
 
 class DatabaseStorageService {
