@@ -79,6 +79,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
   const [matricula, setMatricula] = useState(usuario?.matricula || '');
   const [carrera, setCarrera] = useState(usuario?.carrera || '');
   const [semestre, setSemestre] = useState<number>(usuario?.semestre || 1);
+  const [promedio, setPromedio] = useState<number>(usuario?.promedio ?? 0);
   const [passwordNueva, setPasswordNueva] = useState('');
 
   // Selector de foto de perfil
@@ -121,6 +122,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
       setMatricula(usuario.matricula || '');
       setCarrera(usuario.carrera || '');
       setSemestre(usuario.semestre || 1);
+      setPromedio(usuario.promedio ?? 0);
       setUrlPersonalizada(usuario.avatar || '');
     }
   }, [usuario]);
@@ -184,6 +186,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
         matricula: usuario.rol === 'TUTORADO' ? matricula.trim() : undefined,
         carrera: usuario.rol === 'TUTORADO' ? carrera.trim() : undefined,
         semestre: usuario.rol === 'TUTORADO' ? semestre : undefined,
+        promedio: usuario.rol === 'TUTORADO' ? Number(promedio) : undefined,
         passwordNueva: passwordNueva.trim() ? passwordNueva.trim() : undefined
       });
 
@@ -204,6 +207,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
           carrera: carrera.trim(),
           matricula: matricula.trim(),
           semestre: semestre,
+          promedio: Number(promedio) || 0,
           telefono: telefono.trim()
         });
       }
@@ -656,7 +660,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
               )}
 
               {usuario.rol === 'TUTORADO' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Matrícula Escolar
@@ -667,6 +671,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
                         type="text"
                         value={matricula}
                         onChange={(e) => setMatricula(e.target.value)}
+                        placeholder="Ej. 2026-UAT-101"
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
                       />
                     </div>
@@ -674,7 +679,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Programa Académico / Carrera
+                      Programa / Carrera
                     </label>
                     <div className="relative">
                       <BookOpen className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -682,6 +687,7 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
                         type="text"
                         value={carrera}
                         onChange={(e) => setCarrera(e.target.value)}
+                        placeholder="Ing. en Sistemas Computacionales"
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
                       />
                     </div>
@@ -702,6 +708,33 @@ export const MiPerfilView: React.FC<MiPerfilViewProps> = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                      <span>Promedio General</span>
+                      <span className="text-[10px] text-[#EE7402] font-bold">0.0 - 10.0</span>
+                    </label>
+                    <div className="relative">
+                      <Award className="w-3.5 h-3.5 text-[#EE7402] absolute left-3 top-2.5" />
+                      <input
+                        type="number"
+                        min="0"
+                        max="10"
+                        step="0.1"
+                        value={promedio}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (isNaN(val)) {
+                            setPromedio(0);
+                          } else {
+                            setPromedio(Math.min(10, Math.max(0, val)));
+                          }
+                        }}
+                        placeholder="Ej. 9.4"
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30 focus:border-[#EE7402]"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UatCircularLogo } from './UatLogo';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  KeyRound
+  KeyRound,
+  ArrowLeftRight,
+  ChevronUp
 } from 'lucide-react';
 
 interface AuthViewProps {
@@ -20,8 +22,8 @@ interface AuthViewProps {
   onLoginDirecto?: (rol: 'tutor' | 'alumno') => void;
 }
 
-export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
-  const { login, registrar } = useAuth();
+export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirecto }) => {
+  const { login, registrar, iniciarSesionDirecta } = useAuth();
 
   // Estados de inputs del login
   const [loginEmail, setLoginEmail] = useState('');
@@ -41,6 +43,45 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const [modalRecuperarAbierto, setModalRecuperarAbierto] = useState(false);
   const [emailRecuperacion, setEmailRecuperacion] = useState('');
   const [recuperacionEnviada, setRecuperacionEnviada] = useState(false);
+
+  // Acceso Rápido de Roles (Minimalista y discreto en la esquina inferior del Login)
+  const [mostrarMenuRoles, setMostrarMenuRoles] = useState(false);
+  const menuRolesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickAfuera = (event: MouseEvent) => {
+      if (menuRolesRef.current && !menuRolesRef.current.contains(event.target as Node)) {
+        setMostrarMenuRoles(false);
+      }
+    };
+    if (mostrarMenuRoles) {
+      document.addEventListener('mousedown', handleClickAfuera);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickAfuera);
+    };
+  }, [mostrarMenuRoles]);
+
+  const handleAccesoRapido = async (rol: 'tutor' | 'alumno') => {
+    setMostrarMenuRoles(false);
+    setErrorMsg(null);
+    setExitoMsg(rol === 'tutor' ? 'Ingresando como Docente Tutor...' : 'Ingresando como Alumno...');
+    setCargando(true);
+    try {
+      await iniciarSesionDirecta(rol);
+      setTimeout(() => {
+        if (onLoginDirecto) {
+          onLoginDirecto(rol);
+        } else if (onLoginSuccess) {
+          onLoginSuccess(rol);
+        }
+      }, 150);
+    } catch {
+      setErrorMsg('No fue posible realizar el acceso rápido.');
+    } finally {
+      setCargando(false);
+    }
+  };
 
   // Formulario Registro adicional
   const [regNombre, setRegNombre] = useState('');
@@ -571,6 +612,94 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
       )}
+
+      {/* 4. BOTÓN MINIMALISTA DE ACCESO RÁPIDO DE ROLES EN ESQUINA INFERIOR */}
+      <div
+        ref={menuRolesRef}
+        className="fixed bottom-4 left-4 z-40 select-none"
+      >
+        {mostrarMenuRoles && (
+          <div className="absolute bottom-11 left-0 w-72 bg-slate-900/95 border border-white/20 rounded-2xl p-3 shadow-2xl backdrop-blur-xl text-white animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
+              <div className="flex items-center gap-1.5">
+                <ArrowLeftRight className="w-3.5 h-3.5 text-[#EE7402]" />
+                <span className="text-xs font-bold font-heading text-white">
+                  Acceso Rápido de Roles
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMostrarMenuRoles(false)}
+                className="text-white/60 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Cerrar menú"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-300 mb-2.5 leading-snug">
+              Ingreso rápido para pruebas sin escribir credenciales:
+            </p>
+
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => handleAccesoRapido('tutor')}
+                disabled={cargando}
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-white/5 hover:bg-[#EE7402]/25 border border-white/10 hover:border-[#EE7402]/50 transition-all text-left cursor-pointer group disabled:opacity-50"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#EE7402]/20 text-[#EE7402] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-white group-hover:text-amber-200 truncate">
+                    Docente Tutor
+                  </div>
+                  <div className="text-[10px] text-slate-300 truncate">
+                    Dr. Roberto Mendoza Salinas
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAccesoRapido('alumno')}
+                disabled={cargando}
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-white/5 hover:bg-blue-600/25 border border-white/10 hover:border-blue-400/50 transition-all text-left cursor-pointer group disabled:opacity-50"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-white group-hover:text-blue-200 truncate">
+                    Alumno Tutorado
+                  </div>
+                  <div className="text-[10px] text-slate-300 truncate">
+                    Ana Lucía Morales Rivera
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setMostrarMenuRoles((prev) => !prev)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white/90 hover:text-white border border-white/20 backdrop-blur-md text-xs font-medium shadow-lg transition-all cursor-pointer group"
+          title="Acceso Rápido de Roles para Pruebas"
+          aria-expanded={mostrarMenuRoles}
+        >
+          <div className="w-2 h-2 rounded-full bg-emerald-400 group-hover:scale-125 transition-transform" />
+          <ArrowLeftRight className="w-3.5 h-3.5 text-[#EE7402]" />
+          <span className="text-[11px] font-semibold tracking-wide">Acceso Rápido</span>
+          <ChevronUp
+            className={`w-3 h-3 text-white/60 transition-transform ${
+              mostrarMenuRoles ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      </div>
     </div>
   );
 };

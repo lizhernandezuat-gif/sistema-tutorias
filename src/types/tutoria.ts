@@ -71,6 +71,7 @@ export interface ActualizarPerfilPayload {
   matricula?: string;
   carrera?: string;
   semestre?: number;
+  promedio?: number;
   passwordActual?: string;
   passwordNueva?: string;
 }

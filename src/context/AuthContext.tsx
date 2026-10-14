@@ -26,6 +26,7 @@ interface AuthContextType {
   registrar: (payload: RegistroUsuarioPayload) => Promise<ApiResponse<SesionAutenticada>>;
   actualizarPerfil: (payload: ActualizarPerfilPayload) => Promise<ApiResponse<SesionAutenticada>>;
   cambiarPerfilDemo: (profileId: string, rol: RolUsuario) => void;
+  cambiarRolActivo: (rol: 'tutor' | 'alumno') => void;
   logout: () => void;
   verificarRuta: (rolesPermitidos?: RolUsuario[]) => {
     autorizado: boolean;
@@ -77,16 +78,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const iniciarSesionDirecta = (rol: 'tutor' | 'alumno') => {
+  const iniciarSesionDirecta = async (rol: 'tutor' | 'alumno') => {
     const targetRol: RolUsuario = rol === 'tutor' ? 'TUTOR' : 'TUTORADO';
-    const usuarios = authService.getUsuariosRegistrados();
-    const usuarioMatch = usuarios.find((u) => u.rol === targetRol);
+    let usuarios = authService.getUsuariosRegistrados();
+    let usuarioMatch = usuarios.find((u) => u.rol === targetRol);
+
+    if (!usuarioMatch) {
+      if (targetRol === 'TUTOR') {
+        await authService.registrarUsuario({
+          nombre: 'Dr. Roberto Mendoza Salinas',
+          email: 'roberto.mendoza@uat.edu.mx',
+          password: 'password123',
+          rol: 'TUTOR',
+          departamento: 'Facultad de Ingeniería y Ciencias',
+          cubículo: 'Edificio Central, Cubículo 101'
+        });
+      } else {
+        await authService.registrarUsuario({
+          nombre: 'Ana Lucía Morales Rivera',
+          email: 'ana.morales@alumno.uat.edu.mx',
+          password: 'password123',
+          rol: 'TUTORADO',
+          matricula: '2026-ISC-101',
+          carrera: 'Ingeniería en Sistemas Computacionales',
+          semestre: 4
+        });
+      }
+      usuarios = authService.getUsuariosRegistrados();
+      usuarioMatch = usuarios.find((u) => u.rol === targetRol);
+    }
+
     if (usuarioMatch) {
       const nuevaSesion = authService.loginPorPerfilId(usuarioMatch.id, targetRol);
       if (nuevaSesion) {
         setSesion(nuevaSesion);
         setIsAuthenticated(true);
         setRolUsuario(rol);
+        setUsuariosRegistrados(authService.getUsuariosRegistrados());
       }
     }
   };
@@ -132,6 +160,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const cambiarRolActivo = (nuevoRol: 'tutor' | 'alumno') => {
+    setRolUsuario(nuevoRol);
+    if (sesion) {
+      const targetRol: RolUsuario = nuevoRol === 'tutor' ? 'TUTOR' : 'TUTORADO';
+      const updatedUser: Omit<UsuarioSistema, 'passwordHash'> = {
+        ...sesion.usuario,
+        rol: targetRol
+      };
+      setSesion({
+        ...sesion,
+        usuario: updatedUser
+      });
+    }
+  };
+
   const logout = () => {
     authService.logout();
     setSesion(null);
@@ -169,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registrar,
         actualizarPerfil,
         cambiarPerfilDemo,
+        cambiarRolActivo,
         logout,
         verificarRuta
       }}

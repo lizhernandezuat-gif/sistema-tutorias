@@ -652,6 +652,9 @@ class AuthBackendService {
       if (cambios.matricula?.trim()) user.matricula = cambios.matricula.trim().toUpperCase();
       if (cambios.carrera?.trim()) user.carrera = cambios.carrera.trim();
       if (cambios.semestre !== undefined) user.semestre = Number(cambios.semestre);
+      if (cambios.promedio !== undefined && !isNaN(Number(cambios.promedio))) {
+        user.promedio = Math.round(Number(cambios.promedio) * 10) / 10;
+      }
 
       const estudianteActualizado: EstudianteCatalogo = {
         id: user.estudianteProfileId || user.id,

@@ -16,7 +16,9 @@ import {
   LogOut,
   ShieldCheck,
   X,
-  Info
+  Info,
+  Users,
+  ArrowLeftRight
 } from 'lucide-react';
 
 interface HeaderProps {

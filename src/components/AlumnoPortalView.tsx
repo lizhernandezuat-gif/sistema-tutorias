@@ -266,7 +266,7 @@ export const AlumnoPortalView: React.FC<AlumnoPortalViewProps> = ({
               Promedio Acumulado
             </span>
             <span className="font-heading font-bold text-2xl text-[#EE7402] tabular-nums">
-              {estudianteActivo.promedio.toFixed(1)}{' '}
+              {(typeof estudianteActivo.promedio === 'number' ? estudianteActivo.promedio : 0).toFixed(1)}{' '}
               <span className="text-xs font-normal text-slate-400 font-sans">/ 10</span>
             </span>
           </div>

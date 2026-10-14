@@ -2345,6 +2345,18 @@ class TutoriaBackendService {
       await dbStorage.put('estudiantes', estActualizado);
     } catch {}
 
+    // Sincronizar en cascada con asignaciones activas del estudiante
+    let modificadoAsignacion = false;
+    this.asignaciones.forEach((a) => {
+      if (a.estudianteId === estudianteId) {
+        a.estudiante = { ...a.estudiante, ...estActualizado };
+        modificadoAsignacion = true;
+      }
+    });
+    if (modificadoAsignacion) {
+      this.save();
+    }
+
     this.notify();
     return estActualizado;
   }

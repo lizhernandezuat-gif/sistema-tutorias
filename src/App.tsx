@@ -32,7 +32,12 @@ import {
 } from 'lucide-react';
 
 function AppContent() {
-  const { sesion, logout: contextLogout, isAuthenticated: authIsAuthenticated } = useAuth();
+  const {
+    sesion,
+    logout: contextLogout,
+    isAuthenticated: authIsAuthenticated,
+    cambiarRolActivo
+  } = useAuth();
 
   // ========================================================
   // 1. ELEVACIÓN DEL ESTADO DE AUTENTICACIÓN (State Hoisting)
@@ -106,7 +111,8 @@ function AppContent() {
           avatar: sesion.usuario.avatar || prev.avatar,
           carrera: sesion.usuario.carrera || prev.carrera,
           matricula: sesion.usuario.matricula || prev.matricula,
-          semestre: sesion.usuario.semestre || prev.semestre
+          semestre: sesion.usuario.semestre || prev.semestre,
+          promedio: typeof sesion.usuario.promedio === 'number' ? sesion.usuario.promedio : prev.promedio
         }));
       }
     }
@@ -116,7 +122,8 @@ function AppContent() {
     sesion?.usuario?.departamento,
     sesion?.usuario?.cubículo,
     sesion?.usuario?.matricula,
-    sesion?.usuario?.carrera
+    sesion?.usuario?.carrera,
+    sesion?.usuario?.promedio
   ]);
 
   // Manejador centralizado para login exitoso y transición inmediata
@@ -125,6 +132,17 @@ function AppContent() {
     setIsAuthenticated(true);
     setRolActivo(rol === 'tutor' ? 'TUTOR' : 'ALUMNO');
     setSeccionActiva(rol === 'tutor' ? 'dashboard' : 'tutorados');
+  };
+
+  // Alternador rápido entre roles (Tutor / Alumno) para pruebas sin cerrar sesión
+  const handleAlternarRol = (nuevoRol: RolSimulado) => {
+    setRolActivo(nuevoRol);
+    const roleKey = nuevoRol === 'TUTOR' ? 'tutor' : 'alumno';
+    setUserRole(roleKey);
+    setSeccionActiva(nuevoRol === 'TUTOR' ? 'dashboard' : 'tutorados');
+    if (cambiarRolActivo) {
+      cambiarRolActivo(roleKey);
+    }
   };
 
   // Manejador centralizado para cierre de sesión seguro
