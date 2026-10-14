@@ -6,8 +6,7 @@ import {
   Tutor,
   EstudianteCatalogo,
   CategoriaArchivo,
-  EstadoRevisionArchivo,
-  EditarArchivoPayload
+  EstadoRevisionArchivo
 } from '../types/tutoria';
 import { tutoriaService } from '../services/tutoriaService';
 import {
@@ -17,6 +16,7 @@ import {
   decodeTextFromDataUrl
 } from '../utils/tutoriaUtils';
 import { AvatarWithFallback } from './AvatarWithFallback';
+import { ActividadesView } from './ActividadesView';
 import {
   UploadCloud,
   FileText,
@@ -25,7 +25,6 @@ import {
   AlertTriangle,
   Clock,
   Trash2,
-  Edit3,
   Search,
   Filter,
   PlusCircle,
@@ -123,20 +122,6 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
   const [actDescripcion, setActDescripcion] = useState('');
   const [actFechaLimite, setActFechaLimite] = useState('2026-10-30');
   const [actEstudianteId, setActEstudianteId] = useState('TODOS');
-
-  // Estados para Edición de Archivos (Tutor y Alumno)
-  const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
-  const [archivoEnEdicion, setArchivoEnEdicion] = useState<ArchivoSistema | null>(null);
-  const [editNombre, setEditNombre] = useState('');
-  const [editDescripcion, setEditDescripcion] = useState('');
-  const [editCategoria, setEditCategoria] = useState<CategoriaArchivo>('Evidencia');
-  const [editComentarioTutor, setEditComentarioTutor] = useState('');
-  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
-
-  // Estados para Confirmación de Eliminación de Archivos
-  const [modalConfirmarBorradoAbierto, setModalConfirmarBorradoAbierto] = useState(false);
-  const [archivoParaBorrar, setArchivoParaBorrar] = useState<ArchivoSistema | null>(null);
-  const [borrando, setBorrando] = useState(false);
 
   const cargarDatos = async () => {
     setCargando(true);
@@ -320,80 +305,6 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
     setModalVisorAbierto(false);
     if (blobUrlActual && blobUrlActual.startsWith('blob:')) {
       URL.revokeObjectURL(blobUrlActual);
-  // Verificación de permisos según rol institucional
-  const puedeEditarOEliminar = (archivo: ArchivoSistema): boolean => {
-    if (rolActivo === 'TUTOR') return true;
-    return archivo.autorId === estudianteActivo.id || archivo.autorRol === 'TUTORADO';
-  };
-
-  // Abrir modal de edición con datos precargados
-  const handleAbrirEditar = (archivo: ArchivoSistema) => {
-    setArchivoEnEdicion(archivo);
-    setEditNombre(archivo.nombre);
-    setEditDescripcion(archivo.descripcion || '');
-    setEditCategoria(archivo.categoria);
-    setEditComentarioTutor(archivo.comentarioTutor || '');
-    setModalEditarAbierto(true);
-  };
-
-  // Guardar cambios editados en el archivo
-  const handleGuardarEdicion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!archivoEnEdicion) return;
-    setGuardandoEdicion(true);
-
-    const payload: EditarArchivoPayload = {
-      archivoId: archivoEnEdicion.id,
-      nombre: editNombre.trim() || archivoEnEdicion.nombre,
-      descripcion: editDescripcion.trim(),
-      categoria: editCategoria,
-      comentarioTutor: rolActivo === 'TUTOR' ? editComentarioTutor.trim() : undefined
-    };
-
-    const res = await tutoriaService.editarArchivo(payload, {
-      id: rolActivo === 'TUTOR' ? tutorActivo.id : estudianteActivo.id,
-      rol: rolActivo === 'TUTOR' ? 'TUTOR' : 'TUTORADO'
-    });
-
-    setGuardandoEdicion(false);
-
-    if (res.success) {
-      setMensajeAlerta({ texto: res.message, tipo: 'ok' });
-      setModalEditarAbierto(false);
-      setArchivoEnEdicion(null);
-      await cargarDatos();
-      setTimeout(() => setMensajeAlerta(null), 3500);
-    } else {
-      setMensajeAlerta({ texto: res.message, tipo: 'error' });
-    }
-  };
-
-  // Abrir modal de confirmación antes de borrar
-  const handleAbrirConfirmarBorrado = (archivo: ArchivoSistema) => {
-    setArchivoParaBorrar(archivo);
-    setModalConfirmarBorradoAbierto(true);
-  };
-
-  // Ejecutar eliminación confirmada con persistencia
-  const handleConfirmarBorrado = async () => {
-    if (!archivoParaBorrar) return;
-    setBorrando(true);
-
-    const res = await tutoriaService.eliminarArchivo(archivoParaBorrar.id, {
-      id: rolActivo === 'TUTOR' ? tutorActivo.id : estudianteActivo.id,
-      rol: rolActivo === 'TUTOR' ? 'TUTOR' : 'TUTORADO'
-    });
-
-    setBorrando(false);
-
-    if (res.success) {
-      setMensajeAlerta({ texto: res.message, tipo: 'ok' });
-      setModalConfirmarBorradoAbierto(false);
-      setArchivoParaBorrar(null);
-      await cargarDatos();
-      setTimeout(() => setMensajeAlerta(null), 3500);
-    } else {
-      setMensajeAlerta({ texto: res.message, tipo: 'error' });
     }
     setBlobUrlActual('');
     setArchivoAVisualizar(null);
@@ -594,34 +505,38 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
         </div>
       )}
 
-      {/* Pestañas de Vista para Tutor */}
-      {rolActivo === 'TUTOR' && (
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xs">
-            <button
-              onClick={() => setTabActiva('archivos')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                tabActiva === 'archivos'
-                  ? 'bg-[#EE7402] text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              <span>Documentos y Evidencias Recibidas ({archivos.length})</span>
-            </button>
-            <button
-              onClick={() => setTabActiva('actividades')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                tabActiva === 'actividades'
-                  ? 'bg-[#EE7402] text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <FileCheck className="w-3.5 h-3.5" />
-              <span>Tareas y Formatos Oficiales ({actividades.length})</span>
-            </button>
-          </div>
+      {/* Pestañas de Vista para Tutor y Alumno */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-2xs">
+          <button
+            onClick={() => setTabActiva('archivos')}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+              tabActiva === 'archivos'
+                ? 'bg-[#EE7402] text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            <span>
+              {rolActivo === 'TUTOR'
+                ? `Documentos y Evidencias Recibidas (${archivos.length})`
+                : `Mis Evidencias Subidas (${archivos.length})`}
+            </span>
+          </button>
+          <button
+            onClick={() => setTabActiva('actividades')}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+              tabActiva === 'actividades'
+                ? 'bg-[#EE7402] text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <FileCheck className="w-3.5 h-3.5" />
+            <span>Tareas y Actividades ({actividades.length})</span>
+          </button>
+        </div>
 
+        {rolActivo === 'TUTOR' && (
           <div className="hidden sm:flex items-center gap-2 text-xs">
             <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 font-semibold flex items-center gap-1.5">
               <Clock className="w-3 h-3" />
@@ -632,8 +547,8 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
               <span>{conteoAprobados} Aprobados</span>
             </span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Contenido Tab 1: Lista de Documentos */}
       {tabActiva === 'archivos' && (
@@ -909,42 +824,14 @@ export const ArchivosEvidenciasView: React.FC<ArchivosEvidenciasViewProps> = ({
         </div>
       )}
 
-      {/* Contenido Tab 2: Tareas y Formatos Oficiales (Tutor) */}
-      {tabActiva === 'actividades' && rolActivo === 'TUTOR' && (
-        <div className="space-y-4">
-          {actividades.length > 0 ? (
-            actividades.map((act) => (
-              <div
-                key={act.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-[#EE7402]/10 text-[#EE7402]">
-                      Actividad Programada
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">
-                      Fecha límite: {act.fechaLimite}
-                    </span>
-                  </div>
-                  <h3 className="font-heading font-semibold text-sm text-slate-900 dark:text-white">
-                    {act.titulo}
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
-                    {act.descripcion}
-                  </p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-              <FileCheck className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
-              <h3 className="font-heading font-semibold text-sm text-slate-900 dark:text-white">
-                No hay actividades registradas
-              </h3>
-            </div>
-          )}
-        </div>
+      {/* Contenido Tab 2: Tareas y Formatos Oficiales (Tutor y Alumno) */}
+      {tabActiva === 'actividades' && (
+        <ActividadesView
+          rolActivo={rolActivo}
+          tutorActivo={tutorActivo}
+          estudianteActivo={estudianteActivo}
+          catalogoEstudiantes={catalogoEstudiantes}
+        />
       )}
 
       {/* ========================================================= */}

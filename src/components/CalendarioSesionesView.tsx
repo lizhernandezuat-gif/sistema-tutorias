@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Tutor,
-  EstudianteCatalogo,
-  CitaAsesoria,
-  RolSimulado,
-  SolicitarAsesoriaPayload,
-  AgendarSesionGrupalPayload
-} from '../types/tutoria';
+import { Tutor, EstudianteCatalogo, CitaAsesoria, RolSimulado, SolicitarAsesoriaPayload } from '../types/tutoria';
 import { tutoriaService } from '../services/tutoriaService';
 import { formatSemestre, getCarreraCorta } from '../utils/tutoriaUtils';
 import { abrirGoogleCalendar, descargarArchivoICS } from '../utils/calendarExportUtils';
@@ -22,10 +15,6 @@ import {
   Send,
   Filter,
   User,
-  Users,
-  UserCheck,
-  UserX,
-  UserPlus,
   ExternalLink,
   CalendarCheck,
   CalendarPlus,
@@ -33,10 +22,6 @@ import {
   ChevronDown,
   Users,
   Check
-  Check,
-  AlertTriangle,
-  Search,
-  Sparkles
 } from 'lucide-react';
 
 interface CalendarioSesionesViewProps {
@@ -73,17 +58,13 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
   const [fecha, setFecha] = useState('2026-10-18');
   const [hora, setHora] = useState('11:00 AM');
   const [modalidad, setModalidad] = useState<'Presencial' | 'Virtual'>('Presencial');
-  const [lugarPresencial, setLugarPresencial] = useState('');
-  const [enlaceVirtual, setEnlaceVirtual] = useState('');
   const [motivoDetalle, setMotivoDetalle] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
-  const [mensajeError, setMensajeError] = useState<string | null>(null);
 
   const cargarCitas = async () => {
     if (rolActivo === 'TUTOR') {
       const res = await tutoriaService.getCitasTutor(tutorActivo.id);
-      const res = await tutoriaService.getCitasPorTutor(tutorActivo.id);
       if (res.data) {
         setCitas(res.data);
       }
@@ -103,50 +84,10 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
     return () => unsub();
   }, [rolActivo, tutorActivo.id, estudianteActivo.id]);
 
-  // Manejo de checkboxes en agendar sesión grupal
-  const handleToggleEstudianteGrupal = (id: string) => {
-    setEstudiantesGrupalesSeleccionados(prev => {
-      if (prev.includes(id)) {
-        return prev.filter(item => item !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
-  };
-
-  const handleSeleccionarTodosGrupales = () => {
-    setEstudiantesGrupalesSeleccionados(catalogoEstudiantes.map(e => e.id));
-  };
-
-  const handleDeseleccionarTodosGrupales = () => {
-    setEstudiantesGrupalesSeleccionados([]);
-  };
-
-  // Guardar nueva sesión (individual o grupal)
   const handleAgendarSesion = async (e: React.FormEvent) => {
     e.preventDefault();
     setGuardando(true);
     setMensajeExito(null);
-    setMensajeError(null);
-
-    if (rolActivo === 'TUTOR' && tipoNuevaSesion === 'grupal') {
-      if (estudiantesGrupalesSeleccionados.length === 0) {
-        setMensajeError('Por favor selecciona al menos un estudiante tutorado para la sesión grupal.');
-        setGuardando(false);
-        return;
-      }
-
-      const payload: AgendarSesionGrupalPayload = {
-        tutorId: tutorActivo.id,
-        estudiantesIds: estudiantesGrupalesSeleccionados,
-        tema,
-        fecha,
-        hora,
-        modalidad,
-        lugar: modalidad === 'Presencial' ? (lugarPresencial.trim() || 'Aula Magna de Tutorías / Cubículo') : undefined,
-        enlaceVirtual: modalidad === 'Virtual' ? (enlaceVirtual.trim() || 'https://meet.google.com/tutoria-grupal-uat') : undefined,
-        motivoDetalle
-      };
 
     const esGrupal = tipoNuevaSesion === 'GRUPAL';
 
@@ -162,52 +103,10 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
       estudiantesIds: esGrupal ? alumnosGrupalesIds : [rolActivo === 'TUTOR' ? estudianteSeleccionadoId : estudianteActivo.id],
       cupoMaximo: esGrupal ? cupoMaximo : 1
     };
-      const res = await tutoriaService.agendarSesionGrupal(payload);
-      setGuardando(false);
 
-      if (res.success) {
-        setMensajeExito(res.message);
-        setTimeout(() => {
-          setModalAgendarAbierto(false);
-          setMensajeExito(null);
-          setMotivoDetalle('');
-        }, 1200);
-        cargarCitas();
-      } else {
-        setMensajeError(res.message);
-      }
-    } else {
-      // Individual
-      const payload: SolicitarAsesoriaPayload = {
-        estudianteId: rolActivo === 'TUTOR' ? estudianteSeleccionadoId : estudianteActivo.id,
-        tutorId: tutorActivo.id,
-        tema,
-        fecha,
-        hora,
-        modalidad,
-        motivoDetalle
-      };
+    const res = await tutoriaService.solicitarCitaComoAlumno(payload);
+    setGuardando(false);
 
-      const res = await tutoriaService.solicitarCitaComoAlumno(payload);
-      setGuardando(false);
-
-      if (res.success) {
-        setMensajeExito('Sesión individual agendada exitosamente en el calendario.');
-        setTimeout(() => {
-          setModalAgendarAbierto(false);
-          setMensajeExito(null);
-          setMotivoDetalle('');
-        }, 1200);
-        cargarCitas();
-      } else {
-        setMensajeError(res.message);
-      }
-    }
-  };
-
-  // Respuesta de asistencia del alumno a sesión grupal
-  const handleResponderSesionGrupal = async (citaId: string, respuesta: 'Confirmada' | 'Rechazada') => {
-    const res = await tutoriaService.responderCitaGrupalComoAlumno(citaId, estudianteActivo.id, respuesta);
     if (res.success) {
       setMensajeExito(esGrupal ? '¡Sesión grupal agendada con éxito!' : 'Sesión agendada exitosamente en el calendario.');
       setTimeout(() => {
@@ -215,44 +114,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
         setMensajeExito(null);
         setMotivoDetalle('');
       }, 1200);
-      cargarCitas();
-    }
-  };
-
-  // Abrir modal para editar participantes de una sesión grupal existente (Tutor)
-  const handleAbrirEditarParticipantes = (cita: CitaAsesoria) => {
-    setCitaSeleccionadaParaEditar(cita);
-    setParticipantesSeleccionadosEdicion(cita.estudiantesIds || []);
-    setModalEditarParticipantesAbierto(true);
-  };
-
-  const handleToggleParticipanteEdicion = (id: string) => {
-    setParticipantesSeleccionadosEdicion(prev => {
-      if (prev.includes(id)) {
-        return prev.filter(item => item !== id);
-      } else {
-        return [...prev, id];
-      }
-    });
-  };
-
-  const handleGuardarParticipantesEdicion = async () => {
-    if (!citaSeleccionadaParaEditar) return;
-    if (participantesSeleccionadosEdicion.length === 0) {
-      alert('La sesión grupal debe contar con al menos un tutorado participante.');
-      return;
-    }
-
-    setGuardandoParticipantes(true);
-    const res = await tutoriaService.actualizarParticipantesSesionGrupal(
-      citaSeleccionadaParaEditar.id,
-      participantesSeleccionadosEdicion
-    );
-    setGuardandoParticipantes(false);
-
-    if (res.success) {
-      setModalEditarParticipantesAbierto(false);
-      setCitaSeleccionadaParaEditar(null);
       cargarCitas();
     }
   };
@@ -281,36 +142,22 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
       setAlumnosGrupalesIds([]);
     } else {
       setAlumnosGrupalesIds(catalogoEstudiantes.map((e) => e.id));
-  const handleCancelarCita = async (citaId: string) => {
-    if (confirm('¿Estás seguro de cancelar esta sesión del calendario institucional?')) {
-      await tutoriaService.cancelarCitaComoAlumno(citaId);
-      cargarCitas();
     }
   };
 
-  // Filtrado de citas
   const citasFiltradas = citas.filter((c) => {
     const matchModalidad = filtroModalidad === 'TODAS' || c.modalidad === filtroModalidad;
     const matchTipo =
       filtroTipo === 'TODAS' ||
       (filtroTipo === 'GRUPAL' && (c.tipo === 'GRUPAL' || c.estudianteId === 'TODOS')) ||
       (filtroTipo === 'INDIVIDUAL' && c.tipo !== 'GRUPAL' && c.estudianteId !== 'TODOS');
-    const esGrupal = c.esGrupal || c.estudianteId === 'GRUPAL' || (c.estudiantesIds && c.estudiantesIds.length > 1);
-    const matchTipo =
-      filtroTipoSesion === 'TODAS' ||
-      (filtroTipoSesion === 'GRUPAL' && esGrupal) ||
-      (filtroTipoSesion === 'INDIVIDUAL' && !esGrupal);
-
     return matchModalidad && matchTipo;
   });
-
-  const conteoGrupales = citas.filter(c => c.esGrupal || c.estudianteId === 'GRUPAL').length;
-  const conteoIndividuales = citas.length - conteoGrupales;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Cabecera del Calendario */}
-      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="font-heading font-bold text-lg sm:text-xl text-slate-900 dark:text-white tracking-tight">
@@ -334,18 +181,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               onClick={() => setFiltroTipo('TODAS')}
               className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
                 filtroTipo === 'TODAS'
-              ? `Agenda institucional de tutorías individuales y talleres grupales del ${tutorActivo.nombre}`
-              : `Tus sesiones individuales y talleres grupales con tu tutor ${tutorActivo.nombre}`}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {/* Filtro por tipo: Todas / Individuales / Grupales */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
-            <button
-              onClick={() => setFiltroTipoSesion('TODAS')}
-              className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
-                filtroTipoSesion === 'TODAS'
                   ? 'bg-white dark:bg-slate-800 text-[#EE7402] shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
@@ -356,12 +191,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               onClick={() => setFiltroTipo('INDIVIDUAL')}
               className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1 ${
                 filtroTipo === 'INDIVIDUAL'
-              Todas ({citas.length})
-            </button>
-            <button
-              onClick={() => setFiltroTipoSesion('GRUPAL')}
-              className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                filtroTipoSesion === 'GRUPAL'
                   ? 'bg-white dark:bg-slate-800 text-[#EE7402] shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
@@ -373,30 +202,20 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               onClick={() => setFiltroTipo('GRUPAL')}
               className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1 ${
                 filtroTipo === 'GRUPAL'
-              <Users className="w-3 h-3" />
-              <span>Grupales ({conteoGrupales})</span>
-            </button>
-            <button
-              onClick={() => setFiltroTipoSesion('INDIVIDUAL')}
-              className={`px-2.5 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1 ${
-                filtroTipoSesion === 'INDIVIDUAL'
                   ? 'bg-white dark:bg-slate-800 text-[#EE7402] shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Users className="w-3 h-3" />
               <span>Grupales</span>
-              <User className="w-3 h-3" />
-              <span>Individuales ({conteoIndividuales})</span>
             </button>
           </div>
 
           {/* Filtro por modalidad */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+          <div className="flex items-center bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
             <button
               onClick={() => setFiltroModalidad('TODAS')}
               className={`px-2.5 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
-              className={`px-2 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
                 filtroModalidad === 'TODAS'
                   ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -426,7 +245,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
             </button>
           </div>
 
-          {/* Exportar a Google Calendar / ICS */}
+          {/* Botón Exportar a Google Calendar */}
           <div className="relative">
             <button
               onClick={() => setMenuExportarAbierto((prev) => !prev)}
@@ -475,7 +294,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
             )}
           </div>
 
-          {/* Botón Agendar Sesión */}
           <button
             onClick={() => setModalAgendarAbierto(true)}
             className="px-3.5 py-1.5 bg-[#EE7402] hover:bg-[#D96200] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all hover:scale-[1.01] cursor-pointer shrink-0"
@@ -494,22 +312,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
             const alumno = catalogoEstudiantes.find((e) => e.id === cita.estudianteId) || estudianteActivo;
             const esVirtual = cita.modalidad === 'Virtual';
             const esCancelada = cita.estado === 'Cancelada';
-
-            // Alumnos participantes de la sesión grupal
-            const participantesGrupales: EstudianteCatalogo[] = esGrupal && cita.estudiantesIds
-              ? cita.estudiantesIds
-                  .map(id => catalogoEstudiantes.find(e => e.id === id))
-                  .filter((e): e is EstudianteCatalogo => !!e)
-              : [];
-
-            // Estado de confirmación personal para el alumno activo si participa
-            const miConfirmacion = esGrupal && cita.confirmaciones
-              ? cita.confirmaciones[estudianteActivo.id] || 'Pendiente'
-              : undefined;
-
-            const alumnoIndividual = !esGrupal
-              ? catalogoEstudiantes.find(e => e.id === cita.estudianteId) || estudianteActivo
-              : null;
 
             return (
               <div
@@ -556,7 +358,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     </span>
                   </div>
 
-                  {/* Título / Tema */}
                   <h3 className="font-heading font-semibold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">
                     {cita.tema}
                   </h3>
@@ -599,7 +400,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     </div>
                   )}
 
-                  {/* Fecha, Hora y Ubicación */}
+                  {/* Fecha y Hora */}
                   <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 mb-3">
                     <div className="flex items-center gap-2 text-[11px]">
                       <CalendarIcon className="w-3.5 h-3.5 text-[#EE7402]" />
@@ -613,7 +414,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                       {esVirtual ? (
                         <span className="flex items-center gap-1 text-sky-600 dark:text-sky-400">
                           <Video className="w-3 h-3" />
-                          <span>Google Meet UAT</span>
+                          Google Meet disponible
                         </span>
                       ) : (
                         <span className="flex items-center gap-1">
@@ -629,57 +430,8 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                       &ldquo;{cita.motivoDetalle}&rdquo;
                     </p>
                   )}
-
-                  {/* Acciones de confirmación para el alumno en sesiones grupales */}
-                  {rolActivo === 'ALUMNO' && esGrupal && !esCancelada && (
-                    <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-600 dark:text-slate-300 font-medium">
-                          Tu asistencia:
-                        </span>
-                        <span
-                          className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${
-                            miConfirmacion === 'Confirmada'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                              : miConfirmacion === 'Rechazada'
-                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                          }`}
-                        >
-                          {miConfirmacion || 'Pendiente'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          onClick={() => handleResponderSesionGrupal(cita.id, 'Confirmada')}
-                          className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                            miConfirmacion === 'Confirmada'
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                          }`}
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Confirmar</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleResponderSesionGrupal(cita.id, 'Rechazada')}
-                          className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                            miConfirmacion === 'Rechazada'
-                              ? 'bg-rose-600 text-white shadow-xs'
-                              : 'bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
-                          }`}
-                        >
-                          <X className="w-3 h-3" />
-                          <span>Declinar</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* Pie de tarjeta con enlaces y exportar */}
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
                     {esVirtual && cita.enlaceVirtual && !esCancelada ? (
@@ -690,7 +442,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                         className="text-[#EE7402] font-semibold hover:underline flex items-center gap-1 text-[11px]"
                       >
                         <ExternalLink className="w-3 h-3" />
-                        <span>Unirse a Meet</span>
+                        <span>Unirse</span>
                       </a>
                     ) : (
                       <span className="text-[11px] text-slate-400">
@@ -709,15 +461,9 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                           <span>Google Cal</span>
                         </button>
                         <button
-                          onClick={() =>
-                            descargarArchivoICS(
-                              [cita],
-                              `sesion_${cita.fecha}_${cita.id}.ics`,
-                              tutorActivo.nombre
-                            )
-                          }
+                          onClick={() => descargarArchivoICS([cita], `sesion_${cita.fecha}_${cita.id}.ics`, tutorActivo.nombre)}
                           className="p-1 rounded-md text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] cursor-pointer"
-                          title="Descargar archivo .ics"
+                          title="Descargar archivo .ics para esta cita"
                         >
                           <Download className="w-3 h-3" />
                         </button>
@@ -786,7 +532,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
               </div>
               <button
                 onClick={() => setModalAgendarAbierto(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -919,7 +665,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                 />
               </div>
 
-              {/* Fecha y Hora */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
@@ -947,17 +692,15 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                     <option value="10:00 AM">10:00 AM</option>
                     <option value="11:00 AM">11:00 AM</option>
                     <option value="12:00 PM">12:00 PM</option>
-                    <option value="01:00 PM">01:00 PM</option>
                     <option value="04:00 PM">04:00 PM</option>
                     <option value="05:00 PM">05:00 PM</option>
                   </select>
                 </div>
               </div>
 
-              {/* Modalidad: Presencial vs Virtual */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
-                  Modalidad de Impartición
+                  Modalidad
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -993,36 +736,6 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                 </div>
               </div>
 
-              {/* Ubicación / Enlace específico */}
-              {modalidad === 'Presencial' ? (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
-                    Lugar o Aula
-                  </label>
-                  <input
-                    type="text"
-                    value={lugarPresencial}
-                    onChange={(e) => setLugarPresencial(e.target.value)}
-                    placeholder={tipoNuevaSesion === 'grupal' ? 'Aula Magna de Tutorías / Sala 3' : tutorActivo.cubículo}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
-                  />
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
-                    Enlace de Google Meet / Teams
-                  </label>
-                  <input
-                    type="url"
-                    value={enlaceVirtual}
-                    onChange={(e) => setEnlaceVirtual(e.target.value)}
-                    placeholder="https://meet.google.com/tutoria-grupal-uat"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EE7402]/30"
-                  />
-                </div>
-              )}
-
-              {/* Observaciones adicionales */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
                   Observaciones adicionales (Opcional)
@@ -1052,7 +765,7 @@ export const CalendarioSesionesView: React.FC<CalendarioSesionesViewProps> = ({
                   {guardando ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                      <span>Guardando...</span>
+                      <span>Agendando...</span>
                     </>
                   ) : (
                     <>

@@ -12,10 +12,11 @@ import {
   NotebookPen,
   LogOut,
   FolderOpen,
-  GraduationCap
+  GraduationCap,
+  FileCheck
 } from 'lucide-react';
 
-export type SeccionNavegacion = 'dashboard' | 'tutorados' | 'calendario' | 'archivos' | 'notas' | 'perfil';
+export type SeccionNavegacion = 'dashboard' | 'tutorados' | 'actividades' | 'calendario' | 'archivos' | 'notas' | 'perfil';
 
 interface SidebarProps {
   rolActivo: RolSimulado;
@@ -49,7 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const usuarioActual = rolActivo === 'TUTOR' ? tutorActivo : estudianteActivo;
 
   // Menús estrictamente diferenciados por rol institucional (Tutor vs Alumno)
-  // Sin opciones de cambio de rol manual post-login
   const itemsNavegacion = rolActivo === 'TUTOR'
     ? [
         {
@@ -65,6 +65,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           shortLabel: 'Tutorados',
           icon: Users,
           badge: conteoTutorados > 0 ? conteoTutorados.toString() : null
+        },
+        {
+          id: 'actividades' as SeccionNavegacion,
+          label: 'Actividades y Tareas',
+          shortLabel: 'Actividades',
+          icon: FileCheck,
+          badge: null
         },
         {
           id: 'calendario' as SeccionNavegacion,
@@ -87,6 +94,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Mi Tutor Asignado',
           shortLabel: 'Mi Tutor',
           icon: GraduationCap,
+          badge: null
+        },
+        {
+          id: 'actividades' as SeccionNavegacion,
+          label: 'Mis Actividades',
+          shortLabel: 'Actividades',
+          icon: FileCheck,
           badge: null
         },
         {
@@ -121,54 +135,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
         style={{
           backgroundColor: '#002B49'
         }}
-        className={`hidden md:flex flex-col justify-between fixed top-0 bottom-0 left-0 z-40 text-white transition-all duration-300 shadow-xl border-r border-[#003860] ${
+        className={`hidden md:flex flex-col h-screen fixed top-0 bottom-0 left-0 z-40 text-white transition-all duration-300 shadow-xl border-r border-[#003860] ${
           colapsado ? 'w-20' : 'w-64'
         }`}
       >
-        <div>
-          {/* Encabezado del Sidebar: Identidad Institucional UAT */}
-          <div className="h-16 flex items-center justify-between px-4 border-b border-[#003860]">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="shrink-0">
-                <UatLogo variant="compact" size="sm" textColor="light" />
-              </div>
-
-              {!colapsado && (
-                <div className="min-w-0 animate-in fade-in duration-200">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-heading font-extrabold text-base tracking-wider text-[#EE7402]">
-                      UAT
-                    </span>
-                    <span className="text-white/40">|</span>
-                    <span className="font-heading font-bold text-xs text-white tracking-tight">
-                      Tutorías
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-300 block truncate font-medium">
-                    {rolActivo === 'TUTOR' ? 'Portal del Tutor' : 'Portal del Estudiante'}
-                  </span>
-                </div>
-              )}
+        {/* Encabezado del Sidebar: Identidad Institucional UAT Única (Sin duplicidad) */}
+        <div className="h-16 shrink-0 flex items-center justify-between px-4 border-b border-[#003860]">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="shrink-0 flex items-center justify-center">
+              <UatLogo variant="icon" size="sm" />
             </div>
 
-            {/* Botón para colapsar en Desktop */}
-            <button
-              onClick={onToggleColapsar}
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-              title={colapsado ? 'Expandir menú' : 'Contraer menú'}
-            >
-              {colapsado ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-            </button>
-          </div>
-
-          {/* Menú de Navegación Institucional UAT (Exclusivo por Rol) */}
-          <nav className="p-3 space-y-1.5">
             {!colapsado && (
-              <div className="px-3 pb-2 text-[10px] font-bold text-slate-300/80 uppercase tracking-wider">
-                {rolActivo === 'TUTOR' ? 'Menú del Docente' : 'Menú del Alumno'}
+              <div className="min-w-0 animate-in fade-in duration-200">
+                <div className="flex items-center gap-1.5 leading-none">
+                  <span className="font-heading font-extrabold text-base tracking-wider text-[#EE7402]">
+                    UAT
+                  </span>
+                  <span className="text-white/40">|</span>
+                  <span className="font-heading font-bold text-xs text-white tracking-tight">
+                    Tutorías
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-300 block truncate font-medium mt-1">
+                  {rolActivo === 'TUTOR' ? 'Portal del Tutor' : 'Portal del Estudiante'}
+                </span>
               </div>
             )}
+          </div>
 
+          {/* Botón para colapsar en Desktop */}
+          <button
+            onClick={onToggleColapsar}
+            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+            title={colapsado ? 'Expandir menú' : 'Contraer menú'}
+          >
+            {colapsado ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Menú de Navegación Institucional UAT (Scroll independiente) */}
+        <div className="flex-1 overflow-y-auto min-h-0 py-3 px-3 space-y-1.5">
+          {!colapsado && (
+            <div className="px-3 pb-2 text-[10px] font-bold text-slate-300/80 uppercase tracking-wider">
+              {rolActivo === 'TUTOR' ? 'Menú del Docente' : 'Menú del Alumno'}
+            </div>
+          )}
+
+          <nav className="space-y-1.5">
             {itemsNavegacion.map((item) => {
               const Icon = item.icon;
               const isActive =
@@ -214,52 +228,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* Pie del Sidebar: Usuario Autenticado Protegido y Salir (Sin selectores de rol) */}
-        <div className="p-3 border-t border-[#003860] bg-[#00223A] space-y-2.5">
+        {/* Panel Lateral Inferior: Usuario Activo y Salir (Alineado, sin cortes y sin logo duplicado) */}
+        <div className="shrink-0 p-3 border-t border-[#003860] bg-[#00223A] space-y-2">
           {/* Tarjeta de Usuario Activo */}
           <div
-            className={`flex items-center gap-3 p-2 rounded-xl bg-[#001D33] border border-[#003860] ${
-              colapsado ? 'justify-center' : ''
+            className={`flex items-center gap-3 p-2.5 rounded-xl bg-[#001D33] border border-[#003860] ${
+              colapsado ? 'justify-center p-2' : ''
             }`}
+            title={colapsado ? usuarioActual.nombre : undefined}
           >
             <AvatarWithFallback
               src={usuarioActual.avatar}
               alt={usuarioActual.nombre}
-              className="w-9 h-9 rounded-xl ring-2 ring-[#EE7402]/40 shrink-0"
+              className="w-9 h-9 rounded-xl ring-2 ring-[#EE7402]/50 shrink-0"
             />
             {!colapsado && (
               <div className="min-w-0 flex-1">
-                <span className="font-heading font-semibold text-xs text-white block truncate">
+                <span className="font-heading font-semibold text-xs text-white block truncate leading-tight">
                   {usuarioActual.nombre}
                 </span>
-                <span className="text-[10px] text-slate-300 block truncate">
+                <span className="text-[10px] text-slate-300 block truncate mt-0.5">
                   {rolActivo === 'TUTOR'
                     ? (usuarioActual as Tutor).departamento
                     : (usuarioActual as EstudianteCatalogo).carrera}
                 </span>
-                <span className="text-[9.5px] font-semibold text-[#EE7402] block uppercase tracking-wider mt-0.5">
+                <span className="text-[9px] font-bold text-[#EE7402] block uppercase tracking-wider mt-0.5">
                   {rolActivo === 'TUTOR' ? 'Docente Tutor' : 'Estudiante Tutorado'}
                 </span>
               </div>
             )}
           </div>
-
-          {/* Escudo Oficial y Lema UAT */}
-          {!colapsado && (
-            <div className="p-2.5 rounded-xl bg-[#001D33]/60 border border-[#003860]/80 flex items-center gap-3">
-              <div className="shrink-0 p-1 rounded-full bg-white/5 border border-white/10">
-                <UatHeraldicSeal size={38} textColor="light" showMotto={false} />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#EE7402] block leading-tight">
-                  Universidad Autónoma de Tamaulipas
-                </span>
-                <span className="font-serif italic text-[10px] text-slate-300 block tracking-wide mt-0.5">
-                  Verdad, Belleza, Probidad
-                </span>
-              </div>
-            </div>
-          )}
 
           {/* Botón de Cerrar Sesión (Logout) */}
           {onCerrarSesion && (
@@ -267,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onCerrarSesion}
               className={`w-full flex items-center gap-2 rounded-xl text-xs font-semibold text-rose-300 hover:text-white hover:bg-rose-600/80 transition-colors cursor-pointer ${
                 colapsado
-                  ? 'justify-center p-2.5'
+                  ? 'justify-center p-2.5 bg-rose-950/30 border border-rose-900/40'
                   : 'justify-center px-3 py-2 bg-rose-950/40 border border-rose-800/50'
               }`}
               title="Cerrar sesión activa"

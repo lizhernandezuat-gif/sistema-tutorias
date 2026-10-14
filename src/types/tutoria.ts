@@ -17,6 +17,7 @@ export interface UsuarioSistema {
   // Campos de perfil para Tutor
   departamento?: string;
   cubículo?: string;
+  horarioAtencion?: string;
   // Campos de perfil para Tutorado (Alumno)
   matricula?: string;
   carrera?: string;
@@ -56,6 +57,7 @@ export interface RegistroUsuarioPayload {
   // Campos opcionales según rol
   departamento?: string;
   cubículo?: string;
+  horarioAtencion?: string;
   matricula?: string;
   carrera?: string;
   semestre?: number;
@@ -65,15 +67,16 @@ export interface RegistroUsuarioPayload {
 export interface ActualizarPerfilPayload {
   nombre?: string;
   telefono?: string;
+  avatar?: string;
   departamento?: string;
   cubículo?: string;
+  horarioAtencion?: string;
   matricula?: string;
   carrera?: string;
   semestre?: number;
   passwordActual?: string;
   passwordNueva?: string;
 }
-
 
 export interface Tutor {
   id: string;
@@ -83,6 +86,7 @@ export interface Tutor {
   avatar: string;
   rol: 'tutor';
   cubículo: string;
+  horarioAtencion?: string;
 }
 
 export interface EstudianteCatalogo {
@@ -128,8 +132,7 @@ export interface AsignarTutoradoPayload {
 
 export interface CitaAsesoria {
   id: string;
-  estudianteId: string; // ID del estudiante principal o 'GRUPAL'
-  estudiantesIds?: string[]; // Para sesiones grupales: lista de IDs de estudiantes participantes
+  estudianteId: string;
   tutorId: string;
   fecha: string;
   hora: string;
@@ -139,20 +142,9 @@ export interface CitaAsesoria {
   lugar?: string;
   enlaceVirtual?: string;
   motivoDetalle?: string;
-  esGrupal?: boolean;
-  confirmaciones?: Record<string, 'Confirmada' | 'Pendiente' | 'Rechazada'>; // Confirmación individual por alumno
-}
-
-export interface AgendarSesionGrupalPayload {
-  tutorId: string;
-  estudiantesIds: string[];
-  tema: string;
-  fecha: string;
-  hora: string;
-  modalidad: 'Presencial' | 'Virtual';
-  lugar?: string;
-  enlaceVirtual?: string;
-  motivoDetalle?: string;
+  tipo?: 'INDIVIDUAL' | 'GRUPAL';
+  estudiantesIds?: string[];
+  cupoMaximo?: number;
 }
 
 export interface SolicitarAsesoriaPayload {
@@ -224,14 +216,6 @@ export interface RevisarArchivoPayload {
   archivoId: string;
   estadoRevision: EstadoRevisionArchivo;
   comentarioTutor: string;
-}
-
-export interface EditarArchivoPayload {
-  archivoId: string;
-  nombre?: string;
-  descripcion?: string;
-  categoria?: CategoriaArchivo;
-  comentarioTutor?: string;
 }
 
 export interface ActividadAsignada {

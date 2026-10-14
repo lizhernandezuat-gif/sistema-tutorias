@@ -705,16 +705,22 @@ class AuthBackendService {
     if (cambios.telefono !== undefined) {
       user.telefono = cambios.telefono.trim();
     }
+    if (cambios.avatar?.trim()) {
+      user.avatar = cambios.avatar.trim();
+    }
 
     if (user.rol === 'TUTOR') {
       if (cambios.departamento?.trim()) user.departamento = cambios.departamento.trim();
       if (cambios.cubículo?.trim()) user.cubículo = cambios.cubículo.trim();
+      if (cambios.horarioAtencion !== undefined) user.horarioAtencion = cambios.horarioAtencion.trim();
 
       const tutorCat = TUTORES_DEMO.find((t) => t.id === user.tutorProfileId);
       if (tutorCat) {
         tutorCat.nombre = user.nombre;
         tutorCat.departamento = user.departamento || tutorCat.departamento;
         tutorCat.cubículo = user.cubículo || tutorCat.cubículo;
+        if (user.avatar) tutorCat.avatar = user.avatar;
+        if (user.horarioAtencion) tutorCat.horarioAtencion = user.horarioAtencion;
         this.persistExtraTutor(tutorCat);
       }
     } else {
@@ -729,6 +735,7 @@ class AuthBackendService {
         estCat.carrera = user.carrera || estCat.carrera;
         estCat.semestre = user.semestre || estCat.semestre;
         estCat.telefono = user.telefono || estCat.telefono;
+        if (user.avatar) estCat.avatar = user.avatar;
         this.persistExtraEstudiante(estCat);
       }
     }

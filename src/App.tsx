@@ -13,6 +13,7 @@ import { CalendarioSesionesView } from './components/CalendarioSesionesView';
 import { TutoradosDashboard } from './components/TutoradosDashboard';
 import { VisualCalendarWidget } from './components/VisualCalendarWidget';
 import { ArchivosEvidenciasView } from './components/ArchivosEvidenciasView';
+import { ActividadesView } from './components/ActividadesView';
 import { NotasPersonalesView } from './components/NotasPersonalesView';
 import { MiPerfilView } from './components/MiPerfilView';
 import { AuthView } from './components/AuthView';
@@ -84,16 +85,9 @@ function AppContent() {
       setTutorados(res.data);
     }
 
-    if (userRole === 'tutor') {
-      const resCitasTutor = await tutoriaService.getCitasPorTutor(tutorActivo.id);
-      if (resCitasTutor.data) {
-        setCitas(resCitasTutor.data);
-      }
-    } else {
-      const resCitas = await tutoriaService.getMiTutoriaComoAlumno(estudianteActivo.id);
-      if (resCitas.data?.citas) {
-        setCitas(resCitas.data.citas);
-      }
+    const resCitas = await tutoriaService.getMiTutoriaComoAlumno(estudianteActivo.id);
+    if (resCitas.data?.citas) {
+      setCitas(resCitas.data.citas);
     }
 
     const tuts = await tutoriaService.getCatalogoTutores();
@@ -111,7 +105,7 @@ function AppContent() {
       });
       return () => unsub();
     }
-  }, [isAuthenticated, userRole, tutorActivo.id, estudianteActivo.id]);
+  }, [isAuthenticated, tutorActivo.id, estudianteActivo.id]);
 
   // ========================================================
   // DECISIÓN CONDICIONAL EN RAÍZ:
@@ -138,25 +132,18 @@ function AppContent() {
   const proximasSesionesResumen =
     citas.length > 0
       ? citas.slice(0, 3).map((cita, idx) => {
-          const esGrupal = cita.esGrupal || cita.estudianteId === 'GRUPAL' || (cita.estudiantesIds && cita.estudiantesIds.length > 1);
-          const alumno = !esGrupal
-            ? catalogoEstudiantes.find((e) => e.id === cita.estudianteId) || estudianteActivo
-            : null;
-
+          const alumno = catalogoEstudiantes.find((e) => e.id === cita.estudianteId) || estudianteActivo;
           return {
             id: cita.id || `ses-${idx}`,
             hora: cita.hora,
             fecha: cita.fecha,
-            alumno: esGrupal
-              ? `Sesión Grupal (${cita.estudiantesIds?.length || 0} alumnos)`
-              : alumno?.nombre || 'Estudiante Tutorado',
-            carrera: esGrupal ? 'Tutoría Grupal' : alumno?.carrera || '',
-            semestre: esGrupal ? 1 : alumno?.semestre || 1,
+            alumno: alumno.nombre,
+            carrera: alumno.carrera,
+            semestre: alumno.semestre,
             modalidad: cita.modalidad,
-            cubículo: cita.modalidad === 'Virtual' ? 'Google Meet' : cita.lugar || (esGrupal ? 'Aula Magna' : tutorActivo.cubículo),
+            cubículo: cita.modalidad === 'Virtual' ? 'Google Meet' : cita.lugar || tutorActivo.cubículo,
             urgente: cita.estado === 'Pendiente',
-            tema: cita.tema,
-            esGrupal
+            tema: cita.tema
           };
         })
       : [];
@@ -203,6 +190,16 @@ function AppContent() {
             <MiPerfilView onLogout={handleCerrarSesion} />
           )}
 
+          {/* VISTA: ACTIVIDADES Y TAREAS (TUTOR Y ALUMNO) */}
+          {seccionActiva === 'actividades' && (
+            <ActividadesView
+              rolActivo={rolActivo}
+              tutorActivo={tutorActivo}
+              estudianteActivo={estudianteActivo}
+              catalogoEstudiantes={catalogoEstudiantes}
+            />
+          )}
+
           {/* VISTA: DOCUMENTOS Y ARCHIVOS (DIFERENCIADO POR ROL) */}
           {seccionActiva === 'archivos' && (
             <ArchivosEvidenciasView
@@ -216,7 +213,7 @@ function AppContent() {
           {/* ====================================================== */}
           {/* VISTAS EXCLUSIVAS DEL TUTOR DOCENTE                    */}
           {/* ====================================================== */}
-          {seccionActiva !== 'perfil' && seccionActiva !== 'archivos' && rolActivo === 'TUTOR' && (
+          {seccionActiva !== 'perfil' && seccionActiva !== 'archivos' && seccionActiva !== 'actividades' && rolActivo === 'TUTOR' && (
             <>
               {/* 1. Panel Principal (Dashboard) */}
               {seccionActiva === 'dashboard' && (
@@ -411,13 +408,7 @@ function AppContent() {
               {/* 2. Agenda (Calendario) */}
               {seccionActiva === 'calendario' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
-                  <VisualCalendarWidget
-                    citas={citas}
-                    rolActivo="TUTOR"
-                    tutorActivo={tutorActivo}
-                    estudianteActivo={estudianteActivo}
-                    catalogoEstudiantes={catalogoEstudiantes}
-                  />
+                  <VisualCalendarWidget citas={citas} onNuevaSesion={() => {}} />
 
                   <CalendarioSesionesView
                     rolActivo="TUTOR"
@@ -445,7 +436,7 @@ function AppContent() {
           {/* ====================================================== */}
           {/* VISTAS EXCLUSIVAS DEL ALUMNO TUTORADO                  */}
           {/* ====================================================== */}
-          {seccionActiva !== 'perfil' && seccionActiva !== 'archivos' && rolActivo === 'ALUMNO' && (
+          {seccionActiva !== 'perfil' && seccionActiva !== 'archivos' && seccionActiva !== 'actividades' && rolActivo === 'ALUMNO' && (
             <>
               {/* 1. Ver Información del Tutor */}
               {(seccionActiva === 'dashboard' || seccionActiva === 'tutorados') && (
@@ -457,13 +448,7 @@ function AppContent() {
               {/* 2. Mis Reuniones */}
               {seccionActiva === 'calendario' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
-                  <VisualCalendarWidget
-                    citas={citas}
-                    rolActivo="ALUMNO"
-                    tutorActivo={tutorActivo}
-                    estudianteActivo={estudianteActivo}
-                    catalogoEstudiantes={catalogoEstudiantes}
-                  />
+                  <VisualCalendarWidget citas={citas} onNuevaSesion={() => {}} />
 
                   <CalendarioSesionesView
                     rolActivo="ALUMNO"

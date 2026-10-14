@@ -63,6 +63,8 @@ export const Header: React.FC<HeaderProps> = ({
     switch (seccionActiva) {
       case 'tutorados':
         return rolActivo === 'TUTOR' ? 'Mis Tutorados' : 'Información del Tutor';
+      case 'actividades':
+        return rolActivo === 'TUTOR' ? 'Gestión de Actividades y Tareas' : 'Mis Tareas y Actividades';
       case 'calendario':
         return rolActivo === 'TUTOR' ? 'Agenda Institucional' : 'Mis Reuniones Agendadas';
       case 'archivos':
@@ -83,6 +85,10 @@ export const Header: React.FC<HeaderProps> = ({
         return rolActivo === 'TUTOR'
           ? 'Directorio institucional de tutorados asignados y seguimiento académico'
           : 'Ficha de contacto del tutor docente, cubículo y solicitud de asesoría';
+      case 'actividades':
+        return rolActivo === 'TUTOR'
+          ? 'Creación, asignación y seguimiento de entregas académicas de tus tutorados'
+          : 'Tareas, formatos y actividades académicas asignadas por tu tutor';
       case 'calendario':
         return rolActivo === 'TUTOR'
           ? 'Agenda oficial de citas de asesoría presencial y virtual'
@@ -107,26 +113,23 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 sticky top-0 z-30 shadow-2xs transition-colors duration-200">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex items-center justify-between gap-4">
-          {/* Lado Izquierdo: Logotipo UAT Compacto y Título de la Sección Activa */}
+          {/* Lado Izquierdo: Logotipo UAT (Móvil) y Título de la Sección Activa */}
           <div className="flex items-center gap-3.5 min-w-0">
-            {/* Isotipo UAT en Header */}
-            <div className="hidden sm:flex items-center pr-3 border-r border-slate-200 dark:border-slate-800 shrink-0">
+            {/* Isotipo UAT en Header solo visible en pantallas móviles donde el Sidebar está oculto */}
+            <div className="flex md:hidden items-center pr-2 border-r border-slate-200 dark:border-slate-800 shrink-0">
               <button
                 type="button"
                 onClick={() => setModalLogosAbierto(true)}
-                className="group flex items-center gap-1.5 p-1 -m-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
-                title="Ver logotipos oficiales y escudo institucional de la UAT"
+                className="flex items-center gap-1.5 p-1 -m-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                title="Identidad Institucional UAT"
               >
-                <UatLogo variant="compact" size="sm" showSubtitle={false} />
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EE7402]/10 text-[#EE7402] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                  Ver logos
-                </span>
+                <UatLogo variant="icon" size="sm" />
               </button>
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="sm:hidden font-heading font-extrabold text-xs text-[#EE7402] tracking-wider">
+                <span className="md:hidden font-heading font-extrabold text-xs text-[#EE7402] tracking-wider">
                   UAT
                 </span>
                 <h1 className="font-heading font-bold text-base sm:text-lg text-slate-900 dark:text-white tracking-tight leading-tight truncate">
