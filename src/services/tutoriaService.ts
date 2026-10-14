@@ -33,7 +33,6 @@ import {
   EstadoPropuestaHorario,
   TipoNotaSeguimiento
 } from '../types/tutoria';
-import { ASIGNACIONES_INICIALES, CATALOGO_ESTUDIANTES, TUTORES_DEMO } from '../data/mockData';
 import { dbStorage } from './dbStorage';
 
 const STORAGE_KEY = 'sistema_tutorias_asignaciones_v2';
@@ -44,333 +43,7 @@ const NOTAS_STORAGE_KEY = 'sistema_tutorias_notas_personales_v2';
 const DISPONIBILIDAD_STORAGE_KEY = 'sistema_tutorias_disponibilidad_v3';
 const PROPUESTAS_STORAGE_KEY = 'sistema_tutorias_propuestas_v3';
 
-export const ARCHIVOS_INICIALES: ArchivoSistema[] = [
-  {
-    id: 'arch-001',
-    nombre: 'Guia_Institucional_Tutorias_2026.pdf',
-    tipo: 'application/pdf',
-    tamano: 1845000,
-    tamanoFormateado: '1.8 MB',
-    fechaSubida: '2026-10-01T10:00:00.000Z',
-    autorId: 'tutor-001',
-    autorNombre: 'Dr. Roberto Mendoza Salinas',
-    autorRol: 'TUTOR',
-    tutorId: 'tutor-001',
-    categoria: 'Material de Apoyo',
-    descripcion: 'Manual de lineamientos, formatos de sesión y fechas clave de tutoría escolar.',
-    contenidoDataUrl: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYKMDAwMDAwMDAxOCAwMDAwMCBuCjAwMDAwMDAwNjYAwMDAwIG4KMDAwMDAwMDExNSAwMDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA0L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc1CiUlRU9G',
-    estadoRevision: 'Aprobado'
-  },
-  {
-    id: 'arch-002',
-    nombre: 'Reporte_Avance_Titulacion_AnaMorales.pdf',
-    tipo: 'application/pdf',
-    tamano: 842000,
-    tamanoFormateado: '842 KB',
-    fechaSubida: '2026-10-02T14:30:00.000Z',
-    autorId: 'est-101',
-    autorNombre: 'Ana Lucía Morales Rivera',
-    autorRol: 'TUTORADO',
-    tutoradoId: 'est-101',
-    tutorId: 'tutor-001',
-    categoria: 'Evidencia',
-    descripcion: 'Borrador del marco teórico y propuesta metodológica del proyecto de grado.',
-    contenidoDataUrl: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYKMDAwMDAwMDAxOCAwMDAwMCBuCjAwMDAwMDAwNjYAwMDAwIG4KMDAwMDAwMDExNSAwMDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA0L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc1CiUlRU9G',
-    estadoRevision: 'Aprobado',
-    comentarioTutor: 'Excelente avance. La fundamentación es sólida y los objetivos están claros.',
-    fechaRevision: '2026-10-03T09:15:00.000Z'
-  }
-];
 
-export const ACTIVIDADES_INICIALES: ActividadAsignada[] = [
-  {
-    id: 'act-001',
-    titulo: 'Entrega de Formato de Diagnóstico Inicial y Kardex Escolar',
-    descripcion: 'Descargar el formato institucional, llenarlo con las materias aprobadas/reprobadas y subir el PDF firmado.',
-    instruccionesDetalladas: '1. Descarga el formato institucional de diagnóstico adjunto.\n2. Completa tus datos generales, semestre en curso y asignaturas cursadas.\n3. Adjunta una copia digital de tu Kardex oficial descargado del portal UAT.\n4. Sube tu archivo en formato PDF antes de la fecha límite para su revisión y visto bueno.',
-    fechaLimite: '2026-10-25',
-    tutorId: 'tutor-001',
-    tutorNombre: 'Dr. Roberto Mendoza Salinas',
-    estudianteId: 'TODOS',
-    estado: 'Pendiente',
-    archivoAdjunto: {
-      nombre: 'Plantilla_Diagnostico_2026.docx',
-      dataUrl: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQAAAA...',
-      tamano: '145 KB'
-    },
-    fechaCreacion: '2026-10-01T08:00:00.000Z',
-    entregas: [
-      {
-        id: 'ent-001',
-        actividadId: 'act-001',
-        estudianteId: 'est-101',
-        estudianteNombre: 'Ana Lucía Morales Rivera',
-        estudianteMatricula: '220300145',
-        fechaEntrega: '2026-10-04T12:30:00.000Z',
-        archivoAdjunto: {
-          nombre: 'Diagnostico_AnaMorales_2026.pdf',
-          dataUrl: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYKMDAwMDAwMDAxOCAwMDAwMCBuCjAwMDAwMDAwNjYAwMDAwIG4KMDAwMDAwMDExNSAwMDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA0L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc1CiUlRU9G',
-          tamano: '420 KB',
-          tipo: 'application/pdf'
-        },
-        comentariosEstudiante: 'Profesor, adjunto mi diagnóstico completo y la boleta actualizada del periodo anterior.',
-        estado: 'Revisada',
-        calificacion: '100/100',
-        retroalimentacionTutor: 'Excelente entrega Ana Lucía. Tu trayectoria regular está verificada en el sistema.',
-        fechaRevision: '2026-10-05T09:00:00.000Z'
-      }
-    ]
-  },
-  {
-    id: 'act-002',
-    titulo: 'Plan de Regularización en Cálculo Vectorial y Calendario de Asesorías',
-    descripcion: 'Presentar el horario de estudio y calendario de asesorías para el examen extraordinario.',
-    instruccionesDetalladas: 'Elaborar un cronograma semanal con un mínimo de 4 horas de estudio guiado, especificando temas prioritarios (derivadas parciales, integrales múltiples) y firma de compromiso académico.',
-    fechaLimite: '2026-10-20',
-    tutorId: 'tutor-001',
-    tutorNombre: 'Dr. Roberto Mendoza Salinas',
-    estudianteId: 'TODOS',
-    estado: 'Pendiente',
-    fechaCreacion: '2026-10-02T11:00:00.000Z',
-    entregas: [
-      {
-        id: 'ent-002',
-        actividadId: 'act-002',
-        estudianteId: 'est-102',
-        estudianteNombre: 'Diego Alejandro Vargas Peña',
-        estudianteMatricula: '220300189',
-        fechaEntrega: '2026-10-10T16:45:00.000Z',
-        archivoAdjunto: {
-          nombre: 'Cronograma_Calculo_DiegoVargas.pdf',
-          dataUrl: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9MKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYKMDAwMDAwMDAxOCAwMDAwMCBuCjAwMDAwMDAwNjYAwMDAwIG4KMDAwMDAwMDExNSAwMDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA0L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTc1CiUlRU9G',
-          tamano: '280 KB',
-          tipo: 'application/pdf'
-        },
-        comentariosEstudiante: 'Profesor, aquí está mi propuesta de 6 horas de estudio semanal y solicitud de apoyo en asesorías.',
-        estado: 'Entregada' // Por calificar (azul/ámbar)
-      }
-    ]
-  },
-  {
-    id: 'act-003',
-    titulo: 'Cuestionario de Detección de Estilos de Aprendizaje (CHAEA)',
-    descripcion: 'Responder el test de estilos de aprendizaje para adaptar las estrategias pedagógicas del semestre.',
-    instruccionesDetalladas: '1. Responde con honestidad las 80 preguntas del instrumento institucional.\n2. Obtén tu gráfica de perfil (Activo, Reflexivo, Teórico, Pragmático).\n3. Sube la hoja de resultados en formato PDF o imagen legible.',
-    fechaLimite: '2026-10-06', // Fecha pasada para probar vencidas/cerradas
-    tutorId: 'tutor-001',
-    tutorNombre: 'Dr. Roberto Mendoza Salinas',
-    estudianteId: 'TODOS',
-    estado: 'Pendiente',
-    fechaCreacion: '2026-09-20T08:00:00.000Z',
-    entregas: []
-  },
-  {
-    id: 'act-004',
-    titulo: 'Proyecto Integrador de Tutoría: Plan de Vida y Carrera 2026',
-    descripcion: 'Elaboración del ensayo reflexivo de metas académicas, servicio social y titulación.',
-    instruccionesDetalladas: 'Desarrolla en un documento Word o PDF (máximo 4 cuartillas) tus metas profesionales a mediano plazo, plan de liberación de inglés y proyección de prácticas profesionales UAT.',
-    fechaLimite: '2026-11-20', // Fecha futura para programadas
-    tutorId: 'tutor-001',
-    tutorNombre: 'Dr. Roberto Mendoza Salinas',
-    estudianteId: 'TODOS',
-    estado: 'Pendiente',
-    fechaCreacion: '2026-10-10T09:00:00.000Z',
-    entregas: []
-  }
-];
-
-export const DISPONIBILIDADES_INICIALES: DisponibilidadTutor[] = [
-  {
-    tutorId: 'tutor-001',
-    diasLaborales: [1, 2, 3, 4, 5], // Lunes a Viernes
-    bloques: [
-      {
-        diaSemana: 1, // Lunes
-        horaInicio: '09:00',
-        horaFin: '13:00',
-        modalidad: 'Presencial',
-        activo: true
-      },
-      {
-        diaSemana: 2, // Martes
-        horaInicio: '10:00',
-        horaFin: '14:00',
-        modalidad: 'Presencial',
-        activo: true
-      },
-      {
-        diaSemana: 3, // Miércoles
-        horaInicio: '09:00',
-        horaFin: '13:00',
-        modalidad: 'Ambas',
-        activo: true
-      },
-      {
-        diaSemana: 4, // Jueves
-        horaInicio: '11:00',
-        horaFin: '15:00',
-        modalidad: 'Virtual',
-        activo: true
-      },
-      {
-        diaSemana: 5, // Viernes
-        horaInicio: '09:00',
-        horaFin: '13:00',
-        modalidad: 'Presencial',
-        activo: true
-      }
-    ],
-    duracionSesionMinutos: 45,
-    modalidadPreferida: 'Híbrida',
-    lugarHabitual: 'Edificio B, Cubículo 204 (Facultad de Ingeniería)',
-    enlaceMeetHabitual: 'https://meet.google.com/uat-tut-2026',
-    ultimaActualizacion: '2026-10-01T08:00:00.000Z'
-  }
-];
-
-export const PROPUESTAS_INICIALES: PropuestaHorario[] = [
-  {
-    id: 'prop-001',
-    citaId: 'cita-001',
-    estudianteId: 'est-101',
-    estudianteNombre: 'Ana Lucía Morales Rivera',
-    estudianteMatricula: '220300145',
-    tutorId: 'tutor-001',
-    tema: 'Revisión de Avance en Proyecto de Titulación',
-    modalidad: 'Presencial',
-    fechaPropuesta: '2026-10-15',
-    horaPropuesta: '10:00 AM',
-    motivoCambio: 'Se me empalma con la práctica de laboratorio de Redes y Comunicaciones a las 11:00 AM.',
-    estado: 'Pendiente',
-    fechaCreacion: '2026-10-06T15:20:00.000Z'
-  }
-];
-
-export const CITAS_INICIALES: CitaAsesoria[] = [
-  {
-    id: 'cita-001',
-    estudianteId: 'est-101', // Ana Lucía
-    tutorId: 'tutor-001', // Dr. Roberto Mendoza
-    fecha: '2026-10-05',
-    hora: '11:00 AM',
-    tema: 'Revisión de Avance en Proyecto de Titulación',
-    modalidad: 'Presencial',
-    estado: 'Confirmada',
-    lugar: 'Edificio B, Cubículo 204',
-    motivoDetalle: 'Presentar avance del marco teórico y anteproyecto de IA.'
-  },
-  {
-    id: 'cita-002',
-    estudianteId: 'est-102', // Diego Alejandro (en riesgo)
-    tutorId: 'tutor-001',
-    fecha: '2026-10-07',
-    hora: '04:00 PM',
-    tema: 'Estrategia de Regularización en Cálculo Vectorial',
-    modalidad: 'Presencial',
-    estado: 'Confirmada',
-    lugar: 'Edificio B, Cubículo 204',
-    motivoDetalle: 'Revisar temario de examen extraordinario y asesoría de matemáticas.'
-  },
-  {
-    id: 'cita-003',
-    estudianteId: 'est-103', // Mariana Celeste
-    tutorId: 'tutor-001',
-    fecha: '2026-10-12',
-    hora: '10:00 AM',
-    tema: 'Orientación para Selección de Materias Optativas',
-    modalidad: 'Virtual',
-    estado: 'Confirmada',
-    tipo: 'INDIVIDUAL',
-    enlaceVirtual: 'https://meet.google.com/xyz-tutor-2026',
-    motivoDetalle: 'Dudas sobre carga horaria y requisitos de materias del 3er semestre.'
-  },
-  {
-    id: 'cita-004',
-    estudianteId: 'TODOS',
-    tutorId: 'tutor-001',
-    fecha: '2026-10-22',
-    hora: '12:00 PM',
-    tema: 'Taller Grupal: Inducción, Técnicas de Estudio y Exámenes Parciales',
-    modalidad: 'Presencial',
-    estado: 'Confirmada',
-    tipo: 'GRUPAL',
-    esGrupal: true,
-    estudiantesIds: ['est-101', 'est-102', 'est-103', 'est-104'],
-    confirmaciones: {
-      'est-101': 'Pendiente',
-      'est-102': 'Confirmada',
-      'est-103': 'Confirmada',
-      'est-104': 'Pendiente'
-    },
-    cupoMaximo: 25,
-    lugar: 'Aula Magna de Tutorías UAT - Edificio Central',
-    motivoDetalle: 'Sesión institucional grupal sobre estrategias de aprendizaje, calendario de evaluaciones y normatividad escolar UAT.'
-  }
-];
-
-export const NOTAS_INICIALES: NotaPersonalItem[] = [
-  {
-    id: 'nota-001',
-    titulo: 'Estrategias de estudio para cálculo vectorial',
-    categoria: 'Recordatorio',
-    tipoSeccion: 'personal',
-    texto: 'Revisar ejercicios resueltos de integrales múltiples y programar sesión de dudas antes del examen extraordinario. Preparar formulario resumen.',
-    fecha: '10 de octubre de 2026',
-    updatedAt: '2026-10-10T14:30:00.000Z',
-    fijada: true,
-    autorRol: 'TUTOR'
-  },
-  {
-    id: 'nota-002',
-    titulo: 'Revisión de avance curricular con Ana Lucía Morales',
-    categoria: 'Sesión Ordinaria',
-    tipoSeccion: 'seguimiento',
-    estudianteId: 'est-101',
-    estudianteNombre: 'Ana Lucía Morales Rivera',
-    estudianteMatricula: '220300145',
-    texto: 'Se revisó el expediente del semestre 7. Alumna con promedio de 9.4, candidata a beca de excelencia. Acuerda enviar documentación antes del 18 de octubre.',
-    fecha: '8 de octubre de 2026',
-    updatedAt: '2026-10-08T11:00:00.000Z',
-    fijada: true,
-    autorRol: 'TUTOR'
-  },
-  {
-    id: 'nota-003',
-    titulo: 'Duda sobre convalidación de servicio social',
-    categoria: 'Duda de Asesoría',
-    tipoSeccion: 'personal',
-    texto: 'Consultar con la secretaría académica si las horas de ayudantía de laboratorio acreditan como servicio social institucional o prácticas.',
-    fecha: '6 de octubre de 2026',
-    updatedAt: '2026-10-06T09:15:00.000Z',
-    fijada: false,
-    autorRol: 'TUTOR'
-  },
-  {
-    id: 'nota-004',
-    titulo: 'Canalización y regularización con Diego Vargas',
-    categoria: 'Seguimiento Académico',
-    tipoSeccion: 'seguimiento',
-    estudianteId: 'est-102',
-    estudianteNombre: 'Diego Alejandro Vargas Peña',
-    estudianteMatricula: '220300189',
-    texto: 'Se acordó esquema de tutoría de pares para cálculo y seguimiento quincenal. Diego se comprometió a entregar avances semanales de ejercicios.',
-    fecha: '4 de octubre de 2026',
-    updatedAt: '2026-10-04T16:20:00.000Z',
-    fijada: false,
-    autorRol: 'TUTOR'
-  },
-  {
-    id: 'nota-005',
-    titulo: 'Trámite de carta de no adeudo y titulación',
-    categoria: 'Trámite / Beca',
-    tipoSeccion: 'personal',
-    texto: 'Recordatorio para solicitar formato F-04 en ventanilla de servicios escolares y verificar liberación del módulo de inglés en plataforma.',
-    fecha: '2 de octubre de 2026',
-    updatedAt: '2026-10-02T10:00:00.000Z',
-    fijada: false,
-    autorRol: 'TUTOR'
-  }
-];
 
 export interface HttpLogEntry {
   id: string;
@@ -403,77 +76,33 @@ class TutoriaBackendService {
   private initData() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        this.asignaciones = JSON.parse(stored);
-      } else {
-        this.asignaciones = [...ASIGNACIONES_INICIALES];
-        this.save();
-      }
+      this.asignaciones = stored ? JSON.parse(stored) : [];
 
       const storedCitas = localStorage.getItem(CITAS_STORAGE_KEY);
-      if (storedCitas) {
-        this.citas = JSON.parse(storedCitas);
-      } else {
-        this.citas = [...CITAS_INICIALES];
-        this.saveCitas();
-      }
+      this.citas = storedCitas ? JSON.parse(storedCitas) : [];
 
       const storedArchivos = localStorage.getItem(ARCHIVOS_STORAGE_KEY);
-      if (storedArchivos) {
-        this.archivos = JSON.parse(storedArchivos);
-      } else {
-        this.archivos = [...ARCHIVOS_INICIALES];
-        this.saveArchivos();
-      }
+      this.archivos = storedArchivos ? JSON.parse(storedArchivos) : [];
 
       const storedActividades = localStorage.getItem(ACTIVIDADES_STORAGE_KEY);
-      if (storedActividades) {
-        this.actividades = JSON.parse(storedActividades);
-        for (const initAct of ACTIVIDADES_INICIALES) {
-          if (!this.actividades.some(a => a.id === initAct.id)) {
-            this.actividades.push(initAct);
-          }
-        }
-      } else {
-        this.actividades = [...ACTIVIDADES_INICIALES];
-        this.saveActividades();
-      }
+      this.actividades = storedActividades ? JSON.parse(storedActividades) : [];
 
       const storedNotas = localStorage.getItem(NOTAS_STORAGE_KEY);
-      if (storedNotas) {
-        this.notas = JSON.parse(storedNotas);
-        if (this.notas.length === 0) {
-          this.notas = [...NOTAS_INICIALES];
-          this.saveNotas();
-        }
-      } else {
-        this.notas = [...NOTAS_INICIALES];
-        this.saveNotas();
-      }
+      this.notas = storedNotas ? JSON.parse(storedNotas) : [];
 
       const storedDisp = localStorage.getItem(DISPONIBILIDAD_STORAGE_KEY);
-      if (storedDisp) {
-        this.disponibilidades = JSON.parse(storedDisp);
-      } else {
-        this.disponibilidades = [...DISPONIBILIDADES_INICIALES];
-        this.saveDisponibilidad();
-      }
+      this.disponibilidades = storedDisp ? JSON.parse(storedDisp) : [];
 
       const storedProp = localStorage.getItem(PROPUESTAS_STORAGE_KEY);
-      if (storedProp) {
-        this.propuestasHorarios = JSON.parse(storedProp);
-      } else {
-        this.propuestasHorarios = [...PROPUESTAS_INICIALES];
-        this.savePropuestas();
-      }
+      this.propuestasHorarios = storedProp ? JSON.parse(storedProp) : [];
     } catch {
-      this.asignaciones = [...ASIGNACIONES_INICIALES];
-      this.citas = [...CITAS_INICIALES];
-      this.archivos = [...ARCHIVOS_INICIALES];
-      this.actividades = [...ACTIVIDADES_INICIALES];
-      this.notas = [...NOTAS_INICIALES];
-      this.disponibilidades = [...DISPONIBILIDADES_INICIALES];
-      this.propuestasHorarios = [...PROPUESTAS_INICIALES];
+      this.asignaciones = [];
+      this.citas = [];
+      this.archivos = [];
+      this.actividades = [];
+      this.notas = [];
+      this.disponibilidades = [];
+      this.propuestasHorarios = [];
     }
   }
 
@@ -671,11 +300,10 @@ class TutoriaBackendService {
     tutorId: string,
     filters?: { search?: string; estado?: string; periodo?: string; semestre?: string }
   ): Promise<ApiResponse<AsignacionTutorado[]>> {
-    const tutor = TUTORES_DEMO.find(t => t.id === tutorId);
-    if (!tutor) {
+    if (!tutorId) {
       const errRes: ApiResponse<AsignacionTutorado[]> = {
         success: false,
-        message: 'No autorizado: Token de tutor inválido o caducado.',
+        message: 'No autorizado: Token de tutor inválido o ausente.',
         statusCode: 401,
         timestamp: new Date().toISOString()
       };
@@ -716,7 +344,7 @@ class TutoriaBackendService {
 
     const response: ApiResponse<AsignacionTutorado[]> = {
       success: true,
-      message: `Se recuperaron ${resultados.length} tutorados asignados al tutor ${tutor.nombre}.`,
+      message: `Se recuperaron ${resultados.length} tutorados asignados.`,
       data: resultados,
       statusCode: 200,
       timestamp: new Date().toISOString()
@@ -739,8 +367,7 @@ class TutoriaBackendService {
     tutorId: string,
     payload: AsignarTutoradoPayload
   ): Promise<ApiResponse<AsignacionTutorado>> {
-    const tutor = TUTORES_DEMO.find(t => t.id === tutorId);
-    if (!tutor) {
+    if (!tutorId) {
       const errRes: ApiResponse<AsignacionTutorado> = {
         success: false,
         message: 'No autorizado: Token de sesión inválido.',
@@ -763,21 +390,42 @@ class TutoriaBackendService {
       return errRes;
     }
 
-    // 1. Buscar al estudiante en el catálogo institucional general
-    const estudianteEncontrado = CATALOGO_ESTUDIANTES.find(
+    // 1. Buscar al estudiante en el catálogo institucional general persistido
+    const catalogo = await this.getCatalogoEstudiantes();
+    let estudianteEncontrado = catalogo.find(
       e => e.email.toLowerCase() === term || e.matricula.toLowerCase() === term
     );
 
     if (!estudianteEncontrado) {
-      const errRes: ApiResponse<AsignacionTutorado> = {
-        success: false,
-        message: `El estudiante con identificador "${payload.estudianteEmailOrMatricula}" no se encuentra registrado en el catálogo institucional.`,
-        error: 'STUDENT_NOT_FOUND',
-        statusCode: 404,
-        timestamp: new Date().toISOString()
+      // Registrar dinámicamente al estudiante en el catálogo si aún no existe
+      const esEmail = term.includes('@');
+      const nombreAuto = esEmail ? term.split('@')[0].replace(/[._-]/g, ' ') : `Estudiante ${term}`;
+      const nombreCapitalizado = nombreAuto.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const matriculaAuto = esEmail ? `2026-UAT-${Math.floor(100 + Math.random() * 900)}` : term.toUpperCase();
+      const emailAuto = esEmail ? term : `a${term.toLowerCase().replace(/[^a-z0-9]/g, '')}@alumno.uat.edu.mx`;
+
+      const nuevoEst: EstudianteCatalogo = {
+        id: `est-${Date.now().toString(36).slice(-5)}`,
+        matricula: matriculaAuto,
+        nombre: nombreCapitalizado,
+        email: emailAuto,
+        carrera: 'Ingeniería en Sistemas Computacionales',
+        semestre: 1,
+        promedio: 0,
+        telefono: '',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(nombreCapitalizado)}&background=EE7402&color=fff&bold=true`
       };
-      this.logHttp('POST', '/api/tutor/tutorados', 404, tutorId, errRes, payload);
-      return errRes;
+
+      try {
+        const extraKey = 'sistema_tutorias_estudiantes_extra_v1';
+        const raw = localStorage.getItem(extraKey);
+        const list: EstudianteCatalogo[] = raw ? JSON.parse(raw) : [];
+        list.push(nuevoEst);
+        localStorage.setItem(extraKey, JSON.stringify(list));
+        await dbStorage.put('estudiantes', nuevoEst);
+      } catch {}
+
+      estudianteEncontrado = nuevoEst;
     }
 
     // 2. Verificar si YA está asignado a ESTE tutor en el mismo periodo
@@ -807,7 +455,8 @@ class TutoriaBackendService {
     );
 
     if (asignadoAOtroTutor) {
-      const otroTutor = TUTORES_DEMO.find(t => t.id === asignadoAOtroTutor.tutorId);
+      const tutores = await this.getCatalogoTutores();
+      const otroTutor = tutores.find(t => t.id === asignadoAOtroTutor.tutorId);
       const nombreOtroTutor = otroTutor ? otroTutor.nombre : 'otro tutor';
       const errRes: ApiResponse<AsignacionTutorado> = {
         success: false,
@@ -1004,8 +653,14 @@ class TutoriaBackendService {
    */
   public buscarEnCatalogo(query: string): EstudianteCatalogo[] {
     const q = query.toLowerCase().trim();
-    if (!q) return CATALOGO_ESTUDIANTES;
-    return CATALOGO_ESTUDIANTES.filter(
+    let lista: EstudianteCatalogo[] = [];
+    try {
+      const extraKey = 'sistema_tutorias_estudiantes_extra_v1';
+      const raw = localStorage.getItem(extraKey);
+      if (raw) lista = JSON.parse(raw);
+    } catch {}
+    if (!q) return lista;
+    return lista.filter(
       e => e.nombre.toLowerCase().includes(q) ||
            e.email.toLowerCase().includes(q) ||
            e.matricula.toLowerCase().includes(q)
@@ -1021,7 +676,8 @@ class TutoriaBackendService {
     tutor: Tutor | null;
     citas: CitaAsesoria[];
   }>> {
-    const estudiante = CATALOGO_ESTUDIANTES.find(e => e.id === estudianteId);
+    const estudiantes = await this.getCatalogoEstudiantes();
+    const estudiante = estudiantes.find(e => e.id === estudianteId);
     if (!estudiante) {
       return {
         success: false,
@@ -1038,7 +694,8 @@ class TutoriaBackendService {
 
     let tutor: Tutor | null = null;
     if (asignacion) {
-      tutor = TUTORES_DEMO.find(t => t.id === asignacion.tutorId) || null;
+      const tutores = await this.getCatalogoTutores();
+      tutor = tutores.find(t => t.id === asignacion.tutorId) || null;
     }
 
     const citasEstudiante = this.citas.filter(
@@ -2019,16 +1676,17 @@ class TutoriaBackendService {
 
     if (!asig) {
       // Si el tutorado aún no tiene asignación formal, creamos una para almacenar la nota
-      const estudiante = CATALOGO_ESTUDIANTES.find(e => e.id === estudianteId) || {
+      const estudiantes = await this.getCatalogoEstudiantes();
+      const estudiante = estudiantes.find(e => e.id === estudianteId) || {
         id: estudianteId,
-        matricula: '220300999',
+        matricula: '2026-UAT-001',
         nombre: 'Estudiante Tutorado',
-        email: 'alumno.uat@uat.edu.mx',
-        carrera: 'Ingeniería en Tecnologías de la Información',
-        semestre: 6,
-        promedio: 8.5,
-        telefono: '834-000-0000',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+        email: 'alumno@uat.edu.mx',
+        carrera: 'Ingeniería en Sistemas Computacionales',
+        semestre: 1,
+        promedio: 0,
+        telefono: '',
+        avatar: ''
       };
 
       asig = {
@@ -2570,13 +2228,13 @@ class TutoriaBackendService {
       if (raw) extra = JSON.parse(raw);
     } catch {}
 
-    const combinados = [...CATALOGO_ESTUDIANTES];
-    extra.forEach(e => {
-      if (!combinados.some(c => c.id === e.id)) {
-        combinados.push(e);
+    const dbEstudiantes = await dbStorage.getAll<EstudianteCatalogo>('estudiantes');
+    dbEstudiantes.forEach(e => {
+      if (!extra.some(c => c.id === e.id)) {
+        extra.push(e);
       }
     });
-    return combinados;
+    return extra;
   }
 
   /**
@@ -2590,17 +2248,13 @@ class TutoriaBackendService {
       if (raw) extra = JSON.parse(raw);
     } catch {}
 
-    // Combinar aplicando las modificaciones guardadas sobre los tutores existentes
-    const combinados = TUTORES_DEMO.map((t) => {
-      const match = extra.find((e) => e.id === t.id);
-      return match ? { ...t, ...match } : { ...t };
-    });
-    extra.forEach((t) => {
-      if (!combinados.some((c) => c.id === t.id)) {
-        combinados.push(t);
+    const dbTutores = await dbStorage.getAll<Tutor>('tutores');
+    dbTutores.forEach((t) => {
+      if (!extra.some((c) => c.id === t.id)) {
+        extra.push(t);
       }
     });
-    return combinados;
+    return extra;
   }
 
   /**
@@ -2617,26 +2271,19 @@ class TutoriaBackendService {
       if (raw) extra = JSON.parse(raw);
     } catch {}
 
-    const tutorDemo = TUTORES_DEMO.find((t) => t.id === tutorId);
-    if (tutorDemo) {
-      if (cambios.nombre !== undefined) tutorDemo.nombre = cambios.nombre;
-      if (cambios.avatar !== undefined) tutorDemo.avatar = cambios.avatar;
-      if (cambios.departamento !== undefined) tutorDemo.departamento = cambios.departamento;
-      if (cambios.cubículo !== undefined) tutorDemo.cubículo = cambios.cubículo;
-      if (cambios.email !== undefined) tutorDemo.email = cambios.email;
-    }
-
     const idx = extra.findIndex((t) => t.id === tutorId);
     const tutorActualizado: Tutor = {
-      ...(tutorDemo || {
-        id: tutorId,
-        nombre: cambios.nombre || 'Docente Tutor',
-        email: cambios.email || 'docente@uat.edu.mx',
-        departamento: cambios.departamento || 'Docente',
-        avatar: cambios.avatar || '',
-        rol: 'tutor' as const,
-        cubículo: cambios.cubículo || ''
-      }),
+      ...(idx >= 0
+        ? extra[idx]
+        : {
+            id: tutorId,
+            nombre: cambios.nombre || 'Docente Tutor',
+            email: cambios.email || 'docente@uat.edu.mx',
+            departamento: cambios.departamento || 'Facultad de Ingeniería y Ciencias',
+            avatar: cambios.avatar || '',
+            rol: 'tutor' as const,
+            cubículo: cambios.cubículo || 'Cubículo 101'
+          }),
       ...cambios
     };
 
@@ -2669,29 +2316,21 @@ class TutoriaBackendService {
       if (raw) extra = JSON.parse(raw);
     } catch {}
 
-    const estDemo = CATALOGO_ESTUDIANTES.find((e) => e.id === estudianteId);
-    if (estDemo) {
-      if (cambios.nombre !== undefined) estDemo.nombre = cambios.nombre;
-      if (cambios.avatar !== undefined) estDemo.avatar = cambios.avatar;
-      if (cambios.carrera !== undefined) estDemo.carrera = cambios.carrera;
-      if (cambios.matricula !== undefined) estDemo.matricula = cambios.matricula;
-      if (cambios.semestre !== undefined) estDemo.semestre = cambios.semestre;
-      if (cambios.telefono !== undefined) estDemo.telefono = cambios.telefono;
-    }
-
     const idx = extra.findIndex((e) => e.id === estudianteId);
     const estActualizado: EstudianteCatalogo = {
-      ...(estDemo || {
-        id: estudianteId,
-        nombre: cambios.nombre || 'Estudiante',
-        email: cambios.email || 'alumno@uat.edu.mx',
-        carrera: cambios.carrera || 'Ingeniería',
-        matricula: cambios.matricula || '2026-000',
-        semestre: cambios.semestre || 1,
-        promedio: 9.0,
-        avatar: cambios.avatar || '',
-        telefono: cambios.telefono || ''
-      }),
+      ...(idx >= 0
+        ? extra[idx]
+        : {
+            id: estudianteId,
+            nombre: cambios.nombre || 'Estudiante',
+            email: cambios.email || 'alumno@uat.edu.mx',
+            carrera: cambios.carrera || 'Ingeniería en Sistemas Computacionales',
+            matricula: cambios.matricula || '2026-UAT-001',
+            semestre: cambios.semestre || 1,
+            promedio: 0,
+            avatar: cambios.avatar || '',
+            telefono: cambios.telefono || ''
+          }),
       ...cambios
     };
 
@@ -2776,24 +2415,11 @@ class TutoriaBackendService {
    * Resetear a valores de fábrica para pruebas
    */
   public async resetToDefault() {
-    this.asignaciones = [...ASIGNACIONES_INICIALES];
-    this.citas = [...CITAS_INICIALES];
-    this.archivos = [...ARCHIVOS_INICIALES];
-    this.actividades = [...ACTIVIDADES_INICIALES];
-    this.notas = [
-      {
-        id: 1,
-        categoria: 'Duda de Asesoría',
-        texto: 'Preguntar al Dr. Mendoza sobre los requisitos de titulación por promedio y seminario de investigación.',
-        fecha: '14 de octubre, 2026'
-      },
-      {
-        id: 2,
-        categoria: 'Recordatorio',
-        texto: 'Repasar apuntes de la unidad 2 antes de la sesión presencial de este jueves.',
-        fecha: '12 de octubre, 2026'
-      }
-    ];
+    this.asignaciones = [];
+    this.citas = [];
+    this.archivos = [];
+    this.actividades = [];
+    this.notas = [];
 
     this.save();
     this.saveCitas();

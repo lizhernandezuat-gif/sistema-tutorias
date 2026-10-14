@@ -1,21 +1,40 @@
 import React from 'react';
 import { BitacoraNotasView } from './BitacoraNotasView';
-import { TUTORES_DEMO, CATALOGO_ESTUDIANTES } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import { EstudianteCatalogo, Tutor } from '../types/tutoria';
 
 export const NotasPersonalesView: React.FC = () => {
   const { sesion } = useAuth();
-  const estudianteId = sesion?.usuario.estudianteProfileId || 'est-101';
-  const estudianteActivo =
-    CATALOGO_ESTUDIANTES.find((e) => e.id === estudianteId) || CATALOGO_ESTUDIANTES[0];
-  const tutorActivo = TUTORES_DEMO[0];
+  const usuario = sesion?.usuario;
+
+  const estudianteActivo: EstudianteCatalogo = {
+    id: usuario?.estudianteProfileId || usuario?.id || 'est-activo',
+    nombre: usuario?.nombre || 'Estudiante',
+    email: usuario?.email || '',
+    matricula: usuario?.matricula || '',
+    carrera: usuario?.carrera || 'Ingeniería en Sistemas Computacionales',
+    semestre: usuario?.semestre || 1,
+    promedio: usuario?.promedio || 0,
+    telefono: usuario?.telefono || '',
+    avatar: usuario?.avatar || ''
+  };
+
+  const tutorActivo: Tutor = {
+    id: usuario?.tutorProfileId || 'tutor-001',
+    nombre: usuario?.rol === 'TUTOR' ? usuario.nombre : 'Docente Tutor',
+    email: usuario?.rol === 'TUTOR' ? usuario.email : '',
+    departamento: usuario?.departamento || 'Facultad de Ingeniería',
+    avatar: usuario?.avatar || '',
+    rol: 'tutor',
+    cubículo: usuario?.cubículo || ''
+  };
 
   return (
     <BitacoraNotasView
-      rolActivo="ALUMNO"
+      rolActivo={usuario?.rol === 'TUTOR' ? 'TUTOR' : 'ALUMNO'}
       tutorActivo={tutorActivo}
       estudianteActivo={estudianteActivo}
-      catalogoEstudiantes={CATALOGO_ESTUDIANTES}
+      catalogoEstudiantes={[]}
     />
   );
 };

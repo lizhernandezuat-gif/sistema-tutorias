@@ -10,14 +10,12 @@ import {
   Tutor,
   EstudianteCatalogo
 } from '../types/tutoria';
-import { TUTORES_DEMO, CATALOGO_ESTUDIANTES } from '../data/mockData';
+import { dbStorage } from './dbStorage';
 
 const USERS_STORAGE_KEY = 'sistema_tutorias_usuarios_v1';
 const SESSION_TOKEN_KEY = 'sistema_tutorias_jwt_token_v1';
 const EXTRA_TUTORES_KEY = 'sistema_tutorias_tutores_extra_v1';
 const EXTRA_ESTUDIANTES_KEY = 'sistema_tutorias_estudiantes_extra_v1';
-
-export const PASSWORD_DEMO_DEFAULT = 'Tutoria2026*';
 
 /**
  * Codificación Base64URL compatible con UTF-8 para tokens JWT estándar
@@ -49,7 +47,7 @@ function fromBase64Url<T>(str: string): T | null {
 }
 
 /**
- * Simulación determinista de hash de contraseña (estilo bcrypt/SHA-256)
+ * Hash determinista de contraseña (estilo bcrypt/SHA-256)
  */
 export function hashPassword(plain: string): string {
   let hash = 2166136261;
@@ -84,49 +82,6 @@ function signJwtSegments(headerB64: string, payloadB64: string): string {
   return btoa(combined).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-/**
- * Semilla inicial de la Base de Usuarios a partir de TUTORES_DEMO y CATALOGO_ESTUDIANTES
- */
-function construirSemillaUsuarios(): UsuarioSistema[] {
-  const defaultHash = hashPassword(PASSWORD_DEMO_DEFAULT);
-
-  const usuariosTutores: UsuarioSistema[] = TUTORES_DEMO.map((t, index) => ({
-    id: `usr-${t.id}`,
-    nombre: t.nombre,
-    email: t.email.toLowerCase(),
-    passwordHash: defaultHash,
-    rol: 'TUTOR' as RolUsuario,
-    avatar: t.avatar,
-    activo: true,
-    fechaRegistro: new Date(Date.now() - (30 - index) * 86400000).toISOString(),
-    ultimoAcceso: new Date(Date.now() - index * 3600000).toISOString(),
-    tutorProfileId: t.id,
-    departamento: t.departamento,
-    cubículo: t.cubículo,
-    telefono: `+52 834 318 180${index + 1}`
-  }));
-
-  const usuariosTutorados: UsuarioSistema[] = CATALOGO_ESTUDIANTES.map((e, index) => ({
-    id: `usr-${e.id}`,
-    nombre: e.nombre,
-    email: e.email.toLowerCase(),
-    passwordHash: defaultHash,
-    rol: 'TUTORADO' as RolUsuario,
-    avatar: e.avatar,
-    activo: true,
-    fechaRegistro: new Date(Date.now() - (20 - index) * 86400000).toISOString(),
-    ultimoAcceso: index < 3 ? new Date(Date.now() - (index + 2) * 7200000).toISOString() : undefined,
-    estudianteProfileId: e.id,
-    matricula: e.matricula,
-    carrera: e.carrera,
-    semestre: e.semestre,
-    promedio: e.promedio,
-    telefono: e.telefono
-  }));
-
-  return [...usuariosTutores, ...usuariosTutorados];
-}
-
 class AuthBackendService {
   private usuarios: UsuarioSistema[] = [];
   private listeners: Array<() => void> = [];
@@ -137,50 +92,26 @@ class AuthBackendService {
 
   private initUsers() {
     try {
-      // Sincronizar tutores y estudiantes registrados dinámicamente en sesiones previas
-      const storedExtraTutores = localStorage.getItem(EXTRA_TUTORES_KEY);
-      if (storedExtraTutores) {
-        const parsedTutores: Tutor[] = JSON.parse(storedExtraTutores);
-        parsedTutores.forEach((t) => {
-          if (!TUTORES_DEMO.some((existing) => existing.id === t.id)) {
-            TUTORES_DEMO.push(t);
-          }
-        });
-      }
-
-      const storedExtraEstudiantes = localStorage.getItem(EXTRA_ESTUDIANTES_KEY);
-      if (storedExtraEstudiantes) {
-        const parsedEstudiantes: EstudianteCatalogo[] = JSON.parse(storedExtraEstudiantes);
-        parsedEstudiantes.forEach((e) => {
-          if (!CATALOGO_ESTUDIANTES.some((existing) => existing.id === e.id)) {
-            CATALOGO_ESTUDIANTES.push(e);
-          }
-        });
-      }
-
       const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
       if (storedUsers) {
         this.usuarios = JSON.parse(storedUsers);
-        // Garantizar que las dos cuentas oficiales de prueba existan con correo y contraseña estándar
-        const tutorIndex = this.usuarios.findIndex((u) => u.id === 'usr-tutor-001' || u.email.includes('roberto.mendoza'));
-        if (tutorIndex >= 0) {
-          this.usuarios[tutorIndex].email = 'roberto.mendoza@universidad.edu.mx';
-          this.usuarios[tutorIndex].passwordHash = hashPassword(PASSWORD_DEMO_DEFAULT);
-          this.usuarios[tutorIndex].rol = 'TUTOR';
-        }
-        const alumnoIndex = this.usuarios.findIndex((u) => u.id === 'usr-est-101' || u.nombre.includes('Ana Lucía') || u.email.includes('ana.'));
-        if (alumnoIndex >= 0) {
-          this.usuarios[alumnoIndex].email = 'ana.lucia@universidad.edu.mx';
-          this.usuarios[alumnoIndex].passwordHash = hashPassword(PASSWORD_DEMO_DEFAULT);
-          this.usuarios[alumnoIndex].rol = 'TUTORADO';
-        }
       } else {
-        this.usuarios = construirSemillaUsuarios();
-        this.saveUsers();
+        this.usuarios = [];
       }
     } catch {
-      this.usuarios = construirSemillaUsuarios();
+      this.usuarios = [];
     }
+
+    // Sincronizar en segundo plano con IndexedDB
+    dbStorage.getAll<UsuarioSistema>('usuarios').then((dbUsers) => {
+      if (dbUsers && dbUsers.length > 0) {
+        this.usuarios = dbUsers;
+        try {
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(this.usuarios));
+        } catch {}
+        this.notify();
+      }
+    }).catch(() => {});
   }
 
   private saveUsers() {
@@ -189,10 +120,11 @@ class AuthBackendService {
     } catch {
       // Ignorar errores de cuota en storage
     }
+    dbStorage.putMany('usuarios', this.usuarios).catch(() => {});
     this.notify();
   }
 
-  private persistExtraTutor(tutor: Tutor) {
+  public persistExtraTutor(tutor: Tutor) {
     try {
       const currentRaw = localStorage.getItem(EXTRA_TUTORES_KEY);
       const list: Tutor[] = currentRaw ? JSON.parse(currentRaw) : [];
@@ -203,12 +135,13 @@ class AuthBackendService {
         list.push(tutor);
       }
       localStorage.setItem(EXTRA_TUTORES_KEY, JSON.stringify(list));
+      dbStorage.put('tutores', tutor).catch(() => {});
     } catch {
       // Ignorar
     }
   }
 
-  private persistExtraEstudiante(estudiante: EstudianteCatalogo) {
+  public persistExtraEstudiante(estudiante: EstudianteCatalogo) {
     try {
       const currentRaw = localStorage.getItem(EXTRA_ESTUDIANTES_KEY);
       const list: EstudianteCatalogo[] = currentRaw ? JSON.parse(currentRaw) : [];
@@ -219,6 +152,7 @@ class AuthBackendService {
         list.push(estudiante);
       }
       localStorage.setItem(EXTRA_ESTUDIANTES_KEY, JSON.stringify(list));
+      dbStorage.put('estudiantes', estudiante).catch(() => {});
     } catch {
       // Ignorar
     }
@@ -254,8 +188,8 @@ class AuthBackendService {
 
     const profileId =
       usuario.rol === 'TUTOR'
-        ? usuario.tutorProfileId || 'tutor-001'
-        : usuario.estudianteProfileId || 'est-101';
+        ? usuario.tutorProfileId || usuario.id
+        : usuario.estudianteProfileId || usuario.id;
 
     const payload: JwtPayload = {
       sub: usuario.id,
@@ -340,7 +274,6 @@ class AuthBackendService {
 
   /**
    * MIDDLEWARE DE PROTECCIÓN DE RUTAS Y AUTORIZACIÓN POR ROL
-   * Valida que el usuario tenga sesión activa y que su rol esté permitido en la ruta
    */
   public middlewareAutorizacion(
     token: string | null,
@@ -410,7 +343,7 @@ class AuthBackendService {
 
   /**
    * ENDPOINT: POST /api/auth/login
-   * Autenticación mediante email y contraseña
+   * Autenticación real mediante email y contraseña
    */
   public async login(payload: LoginPayload): Promise<ApiResponse<SesionAutenticada>> {
     const emailClean = payload.email.trim().toLowerCase();
@@ -427,11 +360,9 @@ class AuthBackendService {
     }
 
     const usuario = this.usuarios.find(
-      (u) =>
-        u.email.toLowerCase() === emailClean ||
-        (emailClean === 'ana.lucia@universidad.edu.mx' && (u.id === 'usr-est-101' || u.nombre.includes('Ana Lucía'))) ||
-        (emailClean === 'roberto.mendoza@universidad.edu.mx' && (u.id === 'usr-tutor-001' || u.nombre.includes('Roberto Mendoza')))
+      (u) => u.email.toLowerCase() === emailClean
     );
+
     if (!usuario) {
       return {
         success: false,
@@ -442,10 +373,7 @@ class AuthBackendService {
       };
     }
 
-    const passwordValida =
-      verifyPassword(password, usuario.passwordHash) ||
-      password === PASSWORD_DEMO_DEFAULT ||
-      password === 'Tutoria2026*';
+    const passwordValida = verifyPassword(password, usuario.passwordHash);
 
     if (!passwordValida) {
       return {
@@ -489,7 +417,7 @@ class AuthBackendService {
 
   /**
    * ENDPOINT: POST /api/auth/register
-   * Registro de nuevos usuarios con rol TUTOR o TUTORADO
+   * Registro de nuevos usuarios reales con rol TUTOR o TUTORADO
    */
   public async registrarUsuario(
     payload: RegistroUsuarioPayload
@@ -556,13 +484,13 @@ class AuthBackendService {
 
     let tutorProfileId: string | undefined;
     let estudianteProfileId: string | undefined;
-    const avatarDefault = `https://ui-avatars.com/api/?name=${encodeURIComponent(nombre)}&background=0D9488&color=fff&bold=true`;
+    const avatarDefault = `https://ui-avatars.com/api/?name=${encodeURIComponent(nombre)}&background=EE7402&color=fff&bold=true`;
 
     if (rol === 'TUTOR') {
       tutorProfileId = `tutor-${shortId}`;
       const departamento =
-        payload.departamento?.trim() || 'Ingeniería en Sistemas Computacionales';
-      const cubiculo = payload.cubículo?.trim() || 'Edificio B, Cubículo 210';
+        payload.departamento?.trim() || 'Facultad de Ingeniería y Ciencias';
+      const cubiculo = payload.cubículo?.trim() || 'Edificio Central, Cubículo 101';
 
       const nuevoTutor: Tutor = {
         id: tutorProfileId,
@@ -574,20 +502,19 @@ class AuthBackendService {
         cubículo: cubiculo
       };
 
-      TUTORES_DEMO.push(nuevoTutor);
       this.persistExtraTutor(nuevoTutor);
     } else {
       estudianteProfileId = `est-${shortId}`;
       const matriculaGenerada =
         payload.matricula?.trim().toUpperCase() ||
-        `2026-ISC-${Math.floor(100 + Math.random() * 900)}`;
+        `2026-UAT-${Math.floor(100 + Math.random() * 900)}`;
       const carrera =
         payload.carrera?.trim() || 'Ingeniería en Sistemas Computacionales';
       const semestre =
         payload.semestre && payload.semestre >= 1 && payload.semestre <= 12
           ? Number(payload.semestre)
           : 1;
-      const telefono = payload.telefono?.trim() || '+52 834 000 0000';
+      const telefono = payload.telefono?.trim() || '';
 
       const nuevoEstudiante: EstudianteCatalogo = {
         id: estudianteProfileId,
@@ -596,12 +523,11 @@ class AuthBackendService {
         email,
         carrera,
         semestre,
-        promedio: 9.0,
+        promedio: 0,
         telefono,
         avatar: avatarDefault
       };
 
-      CATALOGO_ESTUDIANTES.push(nuevoEstudiante);
       this.persistExtraEstudiante(nuevoEstudiante);
     }
 
@@ -619,22 +545,21 @@ class AuthBackendService {
       estudianteProfileId,
       departamento:
         rol === 'TUTOR'
-          ? payload.departamento?.trim() || 'Ingeniería en Sistemas Computacionales'
+          ? payload.departamento?.trim() || 'Facultad de Ingeniería y Ciencias'
           : undefined,
       cubículo:
-        rol === 'TUTOR' ? payload.cubículo?.trim() || 'Edificio B, Cubículo 210' : undefined,
+        rol === 'TUTOR' ? payload.cubículo?.trim() || 'Edificio Central, Cubículo 101' : undefined,
       matricula:
         rol === 'TUTORADO'
-          ? payload.matricula?.trim().toUpperCase() ||
-            CATALOGO_ESTUDIANTES.find((e) => e.id === estudianteProfileId)?.matricula
+          ? payload.matricula?.trim().toUpperCase() || `2026-UAT-${Math.floor(100 + Math.random() * 900)}`
           : undefined,
       carrera:
         rol === 'TUTORADO'
           ? payload.carrera?.trim() || 'Ingeniería en Sistemas Computacionales'
           : undefined,
       semestre: rol === 'TUTORADO' ? Number(payload.semestre || 1) : undefined,
-      promedio: rol === 'TUTORADO' ? 9.0 : undefined,
-      telefono: payload.telefono?.trim() || '+52 834 000 0000'
+      promedio: rol === 'TUTORADO' ? 0 : undefined,
+      telefono: payload.telefono?.trim() || ''
     };
 
     this.usuarios.unshift(nuevoUsuario);
@@ -653,7 +578,7 @@ class AuthBackendService {
         usuario: this.sanitizarUsuario(nuevoUsuario)
       },
       statusCode: 201,
-      timestamp: nowIso
+      timestamp: new Date().toISOString()
     };
   }
 
@@ -713,29 +638,33 @@ class AuthBackendService {
       if (cambios.departamento?.trim()) user.departamento = cambios.departamento.trim();
       if (cambios.cubículo?.trim()) user.cubículo = cambios.cubículo.trim();
 
-      const tutorCat = TUTORES_DEMO.find((t) => t.id === user.tutorProfileId);
-      if (tutorCat) {
-        tutorCat.nombre = user.nombre;
-        if (user.avatar) tutorCat.avatar = user.avatar;
-        tutorCat.departamento = user.departamento || tutorCat.departamento;
-        tutorCat.cubículo = user.cubículo || tutorCat.cubículo;
-        this.persistExtraTutor(tutorCat);
-      }
+      const tutorActualizado: Tutor = {
+        id: user.tutorProfileId || user.id,
+        nombre: user.nombre,
+        email: user.email,
+        departamento: user.departamento || 'Facultad de Ingeniería y Ciencias',
+        avatar: user.avatar,
+        rol: 'tutor',
+        cubículo: user.cubículo || ''
+      };
+      this.persistExtraTutor(tutorActualizado);
     } else {
       if (cambios.matricula?.trim()) user.matricula = cambios.matricula.trim().toUpperCase();
       if (cambios.carrera?.trim()) user.carrera = cambios.carrera.trim();
       if (cambios.semestre !== undefined) user.semestre = Number(cambios.semestre);
 
-      const estCat = CATALOGO_ESTUDIANTES.find((e) => e.id === user.estudianteProfileId);
-      if (estCat) {
-        estCat.nombre = user.nombre;
-        if (user.avatar) estCat.avatar = user.avatar;
-        estCat.matricula = user.matricula || estCat.matricula;
-        estCat.carrera = user.carrera || estCat.carrera;
-        estCat.semestre = user.semestre || estCat.semestre;
-        estCat.telefono = user.telefono || estCat.telefono;
-        this.persistExtraEstudiante(estCat);
-      }
+      const estudianteActualizado: EstudianteCatalogo = {
+        id: user.estudianteProfileId || user.id,
+        matricula: user.matricula || '',
+        nombre: user.nombre,
+        email: user.email,
+        carrera: user.carrera || 'Ingeniería en Sistemas Computacionales',
+        semestre: user.semestre || 1,
+        promedio: user.promedio || 0,
+        telefono: user.telefono || '',
+        avatar: user.avatar
+      };
+      this.persistExtraEstudiante(estudianteActualizado);
     }
 
     this.saveUsers();
@@ -758,11 +687,11 @@ class AuthBackendService {
   }
 
   /**
-   * Cambiar rápidamente de sesión demo desde el selector de pruebas o pantalla de login
+   * Iniciar sesión por ID de perfil (para restaurar sesión o cambio de perfil)
    */
   public loginPorPerfilId(profileId: string, rol: RolUsuario): SesionAutenticada | null {
     const usuario = this.usuarios.find((u) =>
-      rol === 'TUTOR' ? u.tutorProfileId === profileId : u.estudianteProfileId === profileId
+      rol === 'TUTOR' ? u.tutorProfileId === profileId || u.id === profileId : u.estudianteProfileId === profileId || u.id === profileId
     );
     if (!usuario) return null;
 

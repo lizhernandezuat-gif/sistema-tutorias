@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { UatHeraldicSeal, UatLogo, UatCircularLogo } from './UatLogo';
+import { UatCircularLogo } from './UatLogo';
+import { useAuth } from '../context/AuthContext';
 import {
   Lock,
   Eye,
@@ -10,11 +11,8 @@ import {
   UserCheck,
   CheckCircle2,
   AlertCircle,
-  ArrowRight,
-  ShieldCheck,
   X,
-  KeyRound,
-  FileInput
+  KeyRound
 } from 'lucide-react';
 
 interface AuthViewProps {
@@ -22,8 +20,10 @@ interface AuthViewProps {
   onLoginDirecto?: (rol: 'tutor' | 'alumno') => void;
 }
 
-export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirecto }) => {
-  // 1. SINCRONIZACIÓN TOTAL DE INPUTS (Two-Way Binding)
+export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
+  const { login, registrar } = useAuth();
+
+  // Estados de inputs del login
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
@@ -36,9 +36,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
 
   // Checkbox de términos y condiciones
   const [aceptaTerminos, setAceptaTerminos] = useState(true);
-
-  // Menú flotante de acceso rápido (?)
-  const [simuladorAbierto, setSimuladorAbierto] = useState(false);
 
   // Modal de recuperación de contraseña
   const [modalRecuperarAbierto, setModalRecuperarAbierto] = useState(false);
@@ -54,8 +51,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
   const [regDepartamento, setRegDepartamento] = useState('Facultad de Ingeniería y Ciencias');
   const [regMatricula, setRegMatricula] = useState('');
 
-  // 2. FUNCIÓN DE ENVÍO Y VALIDACIÓN ESTRICTA (Submit & Enter)
-  const handleSubmitLogin = (e: React.FormEvent) => {
+  // Manejo de Inicio de Sesión Real
+  const handleSubmitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setErrorMsg(null);
@@ -64,7 +61,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
     const email = loginEmail.trim().toLowerCase();
     const password = loginPassword.trim();
 
-    // Verificación de campos vacíos
     if (!email || !password) {
       setErrorMsg('Debes ingresar tu correo institucional y tu contraseña.');
       return;
@@ -76,58 +72,72 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
     }
 
     setCargando(true);
-
-    // Validación precisa de Maestro / Tutor
-    if (
-      (email === 'roberto.mendoza@universidad.edu.mx' || email.includes('roberto.mendoza')) &&
-      (password === 'Tutoria2026*' || password === 'tutoria2026')
-    ) {
+    try {
+      const res = await login({ email, password });
+      if (res.success && res.data) {
+        const rol = res.data.usuario.rol === 'TUTOR' ? 'tutor' : 'alumno';
+        setExitoMsg(`Bienvenido(a), ${res.data.usuario.nombre}. Accediendo al sistema...`);
+        setTimeout(() => {
+          onLoginSuccess?.(rol);
+        }, 150);
+      } else {
+        setErrorMsg(res.message || 'Correo o contraseña incorrectos. Verifica tus credenciales e inténtalo de nuevo.');
+      }
+    } catch {
+      setErrorMsg('Ocurrió un error al intentar iniciar sesión. Por favor reintente.');
+    } finally {
       setCargando(false);
-      setExitoMsg('Bienvenido(a), Dr. Roberto Mendoza. Accediendo al panel...');
-      setTimeout(() => {
-        onLoginSuccess?.('tutor');
-      }, 50);
-      return;
     }
-
-    // Validación precisa de Alumno / Tutorado
-    if (
-      (email === 'ana.lucia@universidad.edu.mx' || email.includes('ana.lucia') || email.includes('ana.morales')) &&
-      (password === 'Tutoria2026*' || password === 'tutoria2026')
-    ) {
-      setCargando(false);
-      setExitoMsg('Bienvenida, Ana Lucía Morales. Accediendo al portal...');
-      setTimeout(() => {
-        onLoginSuccess?.('alumno');
-      }, 50);
-      return;
-    }
-
-    // Si las credenciales no coinciden
-    setCargando(false);
-    setErrorMsg('Correo o contraseña incorrectos. Verifica tus credenciales e inténtalo de nuevo.');
   };
 
-  // 3. ACCESO DIRECTO DESDE EL MENÚ FLOTANTE "?" (Transición forzada en 1 clic)
-  const handleIngresoDirecto = (rol: 'tutor' | 'alumno') => {
+  // Manejo de Registro Real
+  const handleSubmitRegistro = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorMsg(null);
     setExitoMsg(null);
-    setSimuladorAbierto(false);
 
-    if (onLoginDirecto) {
-      onLoginDirecto(rol);
-    } else if (onLoginSuccess) {
-      onLoginSuccess(rol);
+    if (!regNombre.trim()) {
+      setErrorMsg('Ingresa tu nombre completo.');
+      return;
     }
-  };
+    if (!regEmail.trim()) {
+      setErrorMsg('Ingresa tu correo electrónico institucional.');
+      return;
+    }
+    if (!regPassword || regPassword.length < 6) {
+      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (regPassword !== regConfirmarPassword) {
+      setErrorMsg('Las contraseñas no coinciden.');
+      return;
+    }
 
-  // Rellenar datos en los inputs para comprobación manual
-  const handleRellenarCampos = (email: string, pass = 'Tutoria2026*') => {
-    setLoginEmail(email);
-    setLoginPassword(pass);
-    setErrorMsg(null);
-    setExitoMsg('Credenciales cargadas. Haz clic en "Ingresar" o presiona Enter.');
-    setSimuladorAbierto(false);
+    setCargando(true);
+    try {
+      const res = await registrar({
+        nombre: regNombre.trim(),
+        email: regEmail.trim(),
+        password: regPassword,
+        confirmarPassword: regConfirmarPassword,
+        rol: regRol === 'tutor' ? 'TUTOR' : 'TUTORADO',
+        matricula: regRol === 'alumno' ? regMatricula.trim() : undefined,
+        departamento: regRol === 'tutor' ? regDepartamento.trim() : undefined
+      });
+
+      if (res.success && res.data) {
+        setExitoMsg('Cuenta registrada exitosamente. Accediendo al sistema...');
+        setTimeout(() => {
+          onLoginSuccess?.(regRol);
+        }, 200);
+      } else {
+        setErrorMsg(res.message || 'No fue posible completar el registro.');
+      }
+    } catch {
+      setErrorMsg('Ocurrió un error inesperado durante el registro.');
+    } finally {
+      setCargando(false);
+    }
   };
 
   const handleRecuperarPassword = (e: React.FormEvent) => {
@@ -136,19 +146,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
     setRecuperacionEnviada(true);
   };
 
-  const handleSubmitRegistro = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regEmail || !regPassword) return;
-    if (regPassword !== regConfirmarPassword) {
-      setErrorMsg('Las contraseñas no coinciden.');
-      return;
-    }
-    onLoginSuccess?.(regRol);
-  };
-
   return (
     <div className="relative h-screen w-full overflow-x-hidden overflow-y-auto md:overflow-hidden font-sans flex flex-col md:flex-row">
-      {/* 1. FONDO INSTITUCIONAL CON ALUMNOS EN EL CAMPUS */}
+      {/* 1. FONDO INSTITUCIONAL CON CAMPUS UAT */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <img
           src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1920&auto=format&fit=crop"
@@ -158,7 +158,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-900/40 to-black/60 md:to-black/30" />
       </div>
 
-      {/* 2. COSTADO IZQUIERDO (DESKTOP): IDENTIDAD Y CAMPUS */}
+      {/* 2. COSTADO IZQUIERDO (DESKTOP): IDENTIDAD INSTITUCIONAL */}
       <div className="hidden md:flex flex-1 h-full flex-col justify-between p-8 lg:p-12 xl:p-16 relative z-10 select-none">
         <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 w-fit pointer-events-auto shadow-lg">
           <UatCircularLogo size="sm" border={false} />
@@ -192,7 +192,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
         </div>
       </div>
 
-      {/* 3. PANEL DERECHO DE LOGIN: 100VH EN DESKTOP / TRANSLÚCIDO EN MÓVIL */}
+      {/* 3. PANEL DERECHO DE LOGIN / REGISTRO */}
       <div className="relative z-20 w-full md:w-[440px] lg:w-[480px] xl:w-[520px] md:h-screen shrink-0 flex items-center justify-center p-4 sm:p-6 md:p-0">
         <div
           style={{
@@ -201,10 +201,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
           className="w-full max-w-md md:max-w-none md:h-full backdrop-blur-xl md:backdrop-blur-2xl shadow-2xl p-6 sm:p-8 lg:p-10 flex flex-col justify-between text-white rounded-3xl md:rounded-none border border-white/30 md:border-l md:border-y-0 md:border-r-0 md:border-white/20 overflow-y-auto"
         >
           <div>
-            {/* Escudo Circular Oficial UAT (Estilo Circular con fondo blanco y anillo estético) */}
+            {/* Escudo Circular Oficial UAT */}
             <div className="flex flex-col items-center text-center pt-2 pb-3">
               <div className="mb-3 relative group">
-                {/* Halo decorativo de luz institucional */}
                 <div className="absolute -inset-1.5 rounded-full bg-white/20 blur-sm pointer-events-none" />
                 <UatCircularLogo
                   size={104}
@@ -252,10 +251,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
             {/* FORMULARIO DE ACCESO (LOGIN) */}
             {modo === 'LOGIN' ? (
               <form onSubmit={handleSubmitLogin} className="space-y-4 mt-1" noValidate>
-                {/* Campo Usuario con Two-Way Binding */}
                 <div>
                   <label className="block text-xs font-semibold text-white/95 mb-1.5 uppercase tracking-wide">
-                    Usuario
+                    Correo Institucional
                   </label>
                   <div className="relative">
                     <div className="absolute left-3.5 top-3 sm:top-3.5 text-slate-500 pointer-events-none">
@@ -269,13 +267,12 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                         setLoginEmail(e.target.value);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      placeholder="roberto.mendoza@universidad.edu.mx"
+                      placeholder="usuario@uat.edu.mx"
                       className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none focus:ring-3 focus:ring-amber-300 shadow-sm transition-all"
                     />
                   </div>
                 </div>
 
-                {/* Campo Contraseña con Two-Way Binding */}
                 <div>
                   <label className="block text-xs font-semibold text-white/95 mb-1.5 uppercase tracking-wide">
                     Contraseña
@@ -292,7 +289,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                         setLoginPassword(e.target.value);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      placeholder="Tutoria2026*"
+                      placeholder="••••••••"
                       className="w-full pl-10 pr-10 py-2.5 sm:py-3 rounded-xl bg-white text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-medium focus:outline-none focus:ring-3 focus:ring-amber-300 shadow-sm transition-all"
                     />
                     <button
@@ -351,14 +348,14 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                       setErrorMsg(null);
                       setExitoMsg(null);
                     }}
-                    className="text-white/85 hover:text-white font-medium cursor-pointer transition-colors mt-0.5"
+                    className="text-white/90 hover:text-white font-medium cursor-pointer transition-colors mt-0.5"
                   >
                     ¿No tiene cuenta? <span className="underline font-bold text-white">Registrarse aquí</span>
                   </button>
                 </div>
               </form>
             ) : (
-              /* FORMULARIO DE REGISTRO */
+              /* FORMULARIO DE REGISTRO REAL */
               <form onSubmit={handleSubmitRegistro} className="space-y-3 mt-2 text-slate-900">
                 <div className="grid grid-cols-2 gap-2 text-white">
                   <button
@@ -412,7 +409,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                     minLength={6}
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Contraseña"
+                    placeholder="Contraseña (mín 6 car.)"
                     className="w-full px-3 py-2 rounded-lg bg-white text-xs font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
                   />
                   <input
@@ -432,7 +429,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                     required
                     value={regMatricula}
                     onChange={(e) => setRegMatricula(e.target.value)}
-                    placeholder="Matrícula (Ej. 2026-ISC-099)"
+                    placeholder="Matrícula (Ej. 2026-ISC-010)"
                     className="w-full px-3 py-2 rounded-lg bg-white text-xs font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
                   />
                 ) : (
@@ -448,9 +445,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                 <button
                   type="submit"
                   disabled={cargando}
-                  className="w-full py-2.5 px-4 rounded-xl bg-white text-[#D95B00] hover:bg-slate-100 font-heading font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-white text-[#D95B00] hover:bg-slate-100 font-heading font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {cargando ? 'Creando cuenta...' : 'Completar Registro'}
+                  {cargando ? 'Registrando...' : 'Completar Registro'}
                 </button>
 
                 <div className="text-center pt-1">
@@ -481,132 +478,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
         </div>
       </div>
 
-      {/* 4. BOTÓN FLOTANTE "?" CON ACCESO DIRECTO INMEDIATO */}
-      <div className="fixed bottom-4 sm:bottom-6 left-4 sm:left-6 z-40">
-        <div className="relative">
-          {simuladorAbierto && (
-            <div className="absolute bottom-16 left-0 w-80 sm:w-96 bg-white text-slate-800 rounded-3xl p-5 shadow-2xl border border-slate-200 animate-in fade-in slide-in-from-bottom-3 duration-200 z-50">
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="font-heading font-bold text-xs sm:text-sm text-slate-900">
-                      Acceso Rápido de Prueba UAT
-                    </h3>
-                    <p className="text-[10px] text-slate-500">
-                      Entra con un clic o rellena los campos
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setSimuladorAbierto(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {/* Tarjeta 1: Maestro / Tutor */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="px-2 py-0.5 rounded text-[9.5px] font-bold uppercase tracking-wider bg-amber-500/15 text-[#EE7402] border border-[#EE7402]/30 flex items-center gap-1">
-                      <GraduationCap className="w-3 h-3" />
-                      <span>Maestro / Tutor</span>
-                    </span>
-                  </div>
-                  <p className="font-heading font-semibold text-xs text-slate-900 truncate">
-                    Dr. Roberto Mendoza Salinas
-                  </p>
-                  <p className="font-mono text-[10.5px] text-slate-500 truncate">
-                    roberto.mendoza@universidad.edu.mx
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Clave: <strong className="font-mono text-slate-800">Tutoria2026*</strong>
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 mt-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleRellenarCampos('roberto.mendoza@universidad.edu.mx')}
-                      className="py-1.5 px-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10.5px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
-                    >
-                      <FileInput className="w-3 h-3" />
-                      <span>Rellenar datos</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleIngresoDirecto('tutor')}
-                      className="py-1.5 px-2 rounded-xl bg-[#EE7402] hover:bg-[#D95B00] text-white text-[10.5px] font-semibold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
-                    >
-                      <span>Ingresar directo</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tarjeta 2: Alumno / Tutorado */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="px-2 py-0.5 rounded text-[9.5px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-600 border border-blue-500/30 flex items-center gap-1">
-                      <UserCheck className="w-3 h-3" />
-                      <span>Alumno / Tutorado</span>
-                    </span>
-                  </div>
-                  <p className="font-heading font-semibold text-xs text-slate-900 truncate">
-                    Ana Lucía Morales Rivera
-                  </p>
-                  <p className="font-mono text-[10.5px] text-slate-500 truncate">
-                    ana.lucia@universidad.edu.mx
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Clave: <strong className="font-mono text-slate-800">Tutoria2026*</strong>
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 mt-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleRellenarCampos('ana.lucia@universidad.edu.mx')}
-                      className="py-1.5 px-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10.5px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
-                    >
-                      <FileInput className="w-3 h-3" />
-                      <span>Rellenar datos</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleIngresoDirecto('alumno')}
-                      className="py-1.5 px-2 rounded-xl bg-[#002B49] hover:bg-[#001D33] text-white text-[10.5px] font-semibold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
-                    >
-                      <span>Ingresar directo</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 pt-2 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-                Elige "Ingresar directo" para entrar al instante o "Rellenar datos" para probar el botón Ingresar
-              </div>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setSimuladorAbierto((prev) => !prev)}
-            className="w-12 h-12 rounded-full bg-[#002B49]/90 hover:bg-[#EE7402] text-white shadow-2xl border border-white/40 backdrop-blur-md flex items-center justify-center font-bold text-xl cursor-pointer transition-all hover:scale-105 active:scale-95 group"
-            title="Acceso rápido y credenciales de prueba"
-            aria-label="Abrir acceso rápido"
-          >
-            <span className="font-heading group-hover:rotate-12 transition-transform">?</span>
-          </button>
-        </div>
-      </div>
-
       {/* MODAL DE RECUPERACIÓN */}
       {modalRecuperarAbierto && (
         <div
@@ -624,17 +495,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
                 </div>
                 <div>
                   <h3 className="font-heading font-bold text-base text-slate-900">
-                    Recuperar Contraseña
+                    Recuperación de Contraseña
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Portal Institucional UAT
+                    Sistema Integral Institucional Escolar UAT
                   </p>
                 </div>
               </div>
-
               <button
+                type="button"
                 onClick={() => setModalRecuperarAbierto(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -642,20 +513,20 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
 
             {recuperacionEnviada ? (
               <div className="text-center py-4 space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 mx-auto flex items-center justify-center">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <h4 className="font-heading font-bold text-sm text-slate-900">
-                  Instrucciones enviadas
+                  Enlace Enviado
                 </h4>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Hemos enviado un enlace de restablecimiento seguro a{' '}
-                  <strong className="text-slate-800">{emailRecuperacion}</strong>. Por favor revise su bandeja de entrada o spam.
+                  Se ha enviado un correo con las instrucciones para restablecer tu contraseña a{' '}
+                  <strong className="text-slate-900">{emailRecuperacion}</strong>.
                 </p>
                 <button
                   type="button"
                   onClick={() => setModalRecuperarAbierto(false)}
-                  className="mt-2 w-full py-2.5 rounded-xl bg-[#EE7402] text-white text-xs font-semibold hover:bg-[#D95B00] cursor-pointer"
+                  className="w-full mt-3 py-2.5 px-4 bg-[#EE7402] hover:bg-[#D96200] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
                 >
                   Entendido
                 </button>
@@ -663,34 +534,34 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess, onLoginDirec
             ) : (
               <form onSubmit={handleRecuperarPassword} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Ingrese su correo electrónico institucional para recibir un enlace de restablecimiento de contraseña.
+                  Ingresa tu dirección de correo institucional registrada para enviarte un enlace de recuperación.
                 </p>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Correo Electrónico
+                    Correo Institucional
                   </label>
                   <input
                     type="email"
                     required
                     value={emailRecuperacion}
                     onChange={(e) => setEmailRecuperacion(e.target.value)}
-                    placeholder="usuario@universidad.edu.mx"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#EE7402]"
+                    placeholder="usuario@uat.edu.mx"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#EE7402]"
                   />
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                <div className="flex items-center gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setModalRecuperarAbierto(false)}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 cursor-pointer"
+                    className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2.5 rounded-xl bg-[#EE7402] text-white text-xs font-semibold hover:bg-[#D95B00] cursor-pointer"
+                    className="flex-1 py-2.5 px-4 bg-[#EE7402] hover:bg-[#D96200] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
                   >
                     Enviar Enlace
                   </button>

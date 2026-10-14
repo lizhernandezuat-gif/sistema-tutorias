@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { TUTORES_DEMO, CATALOGO_ESTUDIANTES } from './data/mockData';
 import { Tutor, EstudianteCatalogo, AsignacionTutorado, RolSimulado, CitaAsesoria } from './types/tutoria';
 import { tutoriaService } from './services/tutoriaService';
 import { Sidebar, SeccionNavegacion } from './components/Sidebar';
@@ -33,7 +32,7 @@ import {
 } from 'lucide-react';
 
 function AppContent() {
-  const { sesion, logout: contextLogout, iniciarSesionDirecta } = useAuth();
+  const { sesion, logout: contextLogout, isAuthenticated: authIsAuthenticated } = useAuth();
 
   // ========================================================
   // 1. ELEVACIÓN DEL ESTADO DE AUTENTICACIÓN (State Hoisting)
@@ -43,10 +42,28 @@ function AppContent() {
 
   // Estado de perfiles y vistas activas
   const [rolActivo, setRolActivo] = useState<RolSimulado>('TUTOR');
-  const [tutores, setTutores] = useState<Tutor[]>(TUTORES_DEMO);
-  const [catalogoEstudiantes, setCatalogoEstudiantes] = useState<EstudianteCatalogo[]>(CATALOGO_ESTUDIANTES);
-  const [tutorActivo, setTutorActivo] = useState<Tutor>(TUTORES_DEMO[0]);
-  const [estudianteActivo, setEstudianteActivo] = useState<EstudianteCatalogo>(CATALOGO_ESTUDIANTES[0]);
+  const [tutores, setTutores] = useState<Tutor[]>([]);
+  const [catalogoEstudiantes, setCatalogoEstudiantes] = useState<EstudianteCatalogo[]>([]);
+  const [tutorActivo, setTutorActivo] = useState<Tutor>({
+    id: 'tutor-activo',
+    nombre: 'Docente Tutor',
+    email: 'docente@uat.edu.mx',
+    departamento: 'Facultad de Ingeniería y Ciencias',
+    avatar: '',
+    rol: 'tutor',
+    cubículo: 'Cubículo 101'
+  });
+  const [estudianteActivo, setEstudianteActivo] = useState<EstudianteCatalogo>({
+    id: 'est-activo',
+    matricula: '2026-UAT-001',
+    nombre: 'Estudiante Tutorado',
+    email: 'alumno@uat.edu.mx',
+    carrera: 'Ingeniería en Sistemas Computacionales',
+    semestre: 1,
+    promedio: 0,
+    telefono: '',
+    avatar: ''
+  });
   const [seccionActiva, setSeccionActiva] = useState<SeccionNavegacion>('dashboard');
   const [colapsado, setColapsado] = useState(false);
 
@@ -54,6 +71,18 @@ function AppContent() {
   const [tutoradoSeleccionado, setTutoradoSeleccionado] = useState<AsignacionTutorado | null>(null);
   const [tutorados, setTutorados] = useState<AsignacionTutorado[]>([]);
   const [citas, setCitas] = useState<CitaAsesoria[]>([]);
+
+  // Sincronizar automáticamente la autenticación persistida en el contexto
+  useEffect(() => {
+    if (authIsAuthenticated && sesion) {
+      setIsAuthenticated(true);
+      const rol = sesion.usuario.rol === 'TUTOR' ? 'tutor' : 'alumno';
+      setUserRole(rol);
+      setRolActivo(sesion.usuario.rol === 'TUTOR' ? 'TUTOR' : 'ALUMNO');
+    } else if (!authIsAuthenticated) {
+      setIsAuthenticated(false);
+    }
+  }, [authIsAuthenticated, sesion]);
 
   // Sincronizar reactivamente el perfil del usuario activo al editarse
   useEffect(() => {
@@ -94,17 +123,8 @@ function AppContent() {
   const handleLoginSuccess = (rol: 'tutor' | 'alumno') => {
     setUserRole(rol);
     setIsAuthenticated(true);
-    iniciarSesionDirecta(rol);
-
-    if (rol === 'tutor') {
-      setRolActivo('TUTOR');
-      setSeccionActiva('dashboard');
-      setTutorActivo(TUTORES_DEMO[0]);
-    } else {
-      setRolActivo('ALUMNO');
-      setSeccionActiva('tutorados');
-      setEstudianteActivo(CATALOGO_ESTUDIANTES[0]);
-    }
+    setRolActivo(rol === 'tutor' ? 'TUTOR' : 'ALUMNO');
+    setSeccionActiva(rol === 'tutor' ? 'dashboard' : 'tutorados');
   };
 
   // Manejador centralizado para cierre de sesión seguro
