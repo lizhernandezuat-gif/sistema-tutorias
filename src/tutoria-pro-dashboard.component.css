@@ -1,0 +1,591 @@
+/* ==========================================================================
+   TUTORÍA PRO - DASHBOARD MODERNO EN 3 SECCIONES
+   Componente Angular: tutoria-pro-dashboard.component.css
+   ========================================================================== */
+
+/* 1. Tipografías Google Fonts (Outfit para títulos y Inter para cuerpo) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
+:host {
+  display: block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1E293B;
+  background-color: #F8FAFC;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Jerarquía tipográfica */
+h1, h2, h3, h4, .font-heading {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  margin: 0;
+  color: #0F172A;
+}
+
+h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+p {
+  margin: 0;
+}
+
+.text-secondary {
+  color: #64748B;
+  font-size: 0.8125rem;
+}
+
+/* ==========================================================================
+   2. LAYOUT PRINCIPAL (CSS GRID / FLEXBOX) EN 3 SECCIONES
+   - Sidebar (Izquierda): #1E293B, texto blanco
+   - Contenido Central: #F8FAFC, calendario visual + lista principal
+   - Panel Derecho: Resúmenes rápidos + llamadas a la acción
+   ========================================================================== */
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 340px;
+  min-height: 100vh;
+  background-color: #F8FAFC;
+  position: relative;
+}
+
+/* 2.1 SIDEBAR IZQUIERDA */
+.sidebar {
+  background-color: #1E293B;
+  color: #FFFFFF;
+  display: flex;
+  flex-col;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 20;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 24px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: #20B2AA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.sidebar-brand-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: #FFFFFF;
+}
+
+.sidebar-brand-title span {
+  color: #20B2AA;
+}
+
+.sidebar-brand-sub {
+  font-size: 0.7rem;
+  color: #94A3B8;
+  display: block;
+}
+
+.sidebar-menu {
+  list-style: none;
+  padding: 16px 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-menu-item button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  color: #CBD5E1;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.sidebar-menu-item button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+.sidebar-menu-item.active button {
+  background-color: #20B2AA;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(32, 178, 170, 0.25);
+}
+
+.sidebar-badge {
+  font-size: 0.6875rem;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.sidebar-user {
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid #20B2AA;
+}
+
+.sidebar-user-info {
+  line-height: 1.3;
+}
+
+.sidebar-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.sidebar-user-role {
+  font-size: 0.6875rem;
+  color: #94A3B8;
+}
+
+/* 2.2 CONTENIDO CENTRAL */
+.main-content {
+  background-color: #F8FAFC;
+  padding: 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 2.3 PANEL DERECHO */
+.right-panel {
+  background-color: #F8FAFC;
+  padding: 32px 32px 32px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ==========================================================================
+   3. SISTEMA DE TARJETAS (CARDS)
+   background: #FFFFFF; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+   ========================================================================== */
+
+.card {
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 3.1 Tarjeta Urgente (Coral / Salmón #FF7F50) */
+.card-urgent {
+  background-color: #FFFFFF;
+  border: 2px solid #FF7F50;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-urgent::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(255, 127, 80, 0.15) 0%, transparent 70%);
+  pointer-events-none;
+}
+
+.urgent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background-color: rgba(255, 127, 80, 0.12);
+  color: #FF7F50;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.urgent-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #FF7F50;
+}
+
+/* ==========================================================================
+   4. BOTONES Y COLORES DE ACCIÓN
+   Verde menta: #20B2AA
+   Coral/Salmón: #FF7F50
+   ========================================================================== */
+
+.btn-mint {
+  background-color: #20B2AA;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-mint:hover {
+  background-color: #1CA099;
+  transform: translateY(-1px);
+}
+
+.btn-coral {
+  background-color: #FF7F50;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-coral:hover {
+  background-color: #E86C3D;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-outline:hover {
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+}
+
+/* ==========================================================================
+   5. CALENDARIO VISUAL CON ETIQUETAS DE COLORES REDONDEADAS
+   ========================================================================== */
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.calendar-day-col {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 140px;
+}
+
+.calendar-day-col.today {
+  border-color: #20B2AA;
+  background-color: rgba(32, 178, 170, 0.04);
+}
+
+.calendar-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748B;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.calendar-day-num {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.calendar-day-col.today .calendar-day-num {
+  color: #20B2AA;
+}
+
+/* Etiquetas redondeadas de eventos */
+.event-tag {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.event-tag:hover {
+  transform: scale(1.02);
+}
+
+.event-tag-mint {
+  background-color: rgba(32, 178, 170, 0.15);
+  color: #0E7470;
+  border: 1px solid rgba(32, 178, 170, 0.35);
+}
+
+.event-tag-coral {
+  background-color: #FFF5F2;
+  color: #C4431B;
+  border: 1.5px solid #FF7F50;
+  font-weight: 600;
+}
+
+.event-tag-sky {
+  background-color: #F0F9FF;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+
+.event-time {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+  display: block;
+}
+
+/* ==========================================================================
+   6. LISTA PRINCIPAL DE ELEMENTOS (TUTORADOS)
+   ========================================================================== */
+
+.students-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.student-item-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: #FFFFFF;
+  transition: all 0.2s ease;
+}
+
+.student-item-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.student-status-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.status-activo {
+  background-color: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+.status-riesgo {
+  background-color: #FFF5F2;
+  color: #C4431B;
+  border: 1px solid #FECDD3;
+}
+
+/* ==========================================================================
+   7. GRÁFICO DE PROGRESO (VERDE MENTA #20B2AA)
+   ========================================================================== */
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  background-color: #E2E8F0;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.progress-bar-mint {
+  height: 100%;
+  background-color: #20B2AA;
+  border-radius: 9999px;
+  transition: width 0.6s ease;
+}
+
+/* ==========================================================================
+   8. DISEÑO RESPONSIVO (BOTTOM TAB BAR EN MÓVILES)
+   ========================================================================== */
+
+.bottom-tab-bar {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 220px 1fr;
+  }
+  .right-panel {
+    grid-column: 2;
+    padding: 0 32px 32px 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-layout {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 72px; /* Espacio para no tapar con la barra inferior */
+  }
+
+  /* Oculta la barra lateral izquierda */
+  .sidebar {
+    display: none;
+  }
+
+  .main-content {
+    padding: 16px;
+  }
+
+  .right-panel {
+    padding: 0 16px 16px 16px;
+  }
+
+  .calendar-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Barra de Navegación Inferior (Bottom Tab Bar) */
+  .bottom-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background-color: #1E293B;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    z-index: 50;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .bottom-tab-item {
+    background: transparent;
+    border: none;
+    color: #94A3B8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.6875rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    flex: 1;
+    padding: 8px 0;
+    transition: color 0.2s ease;
+  }
+
+  .bottom-tab-item.active {
+    color: #20B2AA;
+    font-weight: 600;
+  }
+
+  .bottom-tab-icon {
+    font-size: 1.1rem;
+  }
+}

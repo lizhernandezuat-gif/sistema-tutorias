@@ -1,0 +1,668 @@
+/* ==========================================================================
+   VISTA MI TUTORÍA (mi-tutoria.component.css)
+   Estilos limpios, minimalistas y sin ruido cognitivo para el estudiante:
+   - Fondos completamente blancos (background: #FFFFFF)
+   - Sombra mínima (box-shadow: 0 2px 4px rgba(0,0,0,0.05))
+   - Separación generosa entre tarjetas (gap: 32px) para que la interfaz respire
+   - Único botón verde menta (#20B2AA) prominente en la sección del tutor
+   - Sección de Notas Personales con globos #F1F5F9 y botón eliminar
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
+:host {
+  display: block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1E293B;
+  background-color: #F8FAFC;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+.mi-tutoria-container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px; /* Margen generoso entre secciones */
+}
+
+/* 1. TARJETAS BLANCAS CON SOMBRA MÍNIMA */
+.card {
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Sombra mínima requerida */
+}
+
+h1, h2, h3 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  margin: 0;
+  color: #0F172A;
+}
+
+h1 {
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+p {
+  margin: 0;
+}
+
+.text-secondary {
+  color: #64748B;
+  font-size: 0.8125rem;
+  margin-top: 3px;
+}
+
+/* ==========================================================================
+   2. SECCIÓN SUPERIOR (HERO): Perfil Horizontal Limpio a Ancho Completo
+   ========================================================================== */
+
+.hero-student-card {
+  width: 100%;
+}
+
+.hero-student-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.hero-student-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hero-student-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 2px solid rgba(32, 178, 170, 0.3);
+}
+
+.hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-badge-active {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: rgba(32, 178, 170, 0.12);
+  color: #0E7470;
+  border: 1px solid rgba(32, 178, 170, 0.25);
+  letter-spacing: 0.05em;
+}
+
+.hero-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: #64748B;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.matricula-tag {
+  font-family: monospace;
+  font-weight: 600;
+  background-color: #F1F5F9;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #1E293B;
+  font-size: 0.75rem;
+}
+
+.career-text {
+  font-weight: 500;
+  color: #334155;
+}
+
+.semester-highlight {
+  font-weight: 600;
+  color: #20B2AA;
+}
+
+.meta-dot {
+  color: #CBD5E1;
+}
+
+.hero-gpa-box {
+  background-color: #F8FAFC;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  text-align: right;
+  min-width: 140px;
+}
+
+.gpa-label {
+  display: block;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #64748B;
+  letter-spacing: 0.05em;
+}
+
+.gpa-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #20B2AA;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
+.gpa-scale {
+  font-size: 0.75rem;
+  color: #94A3B8;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   3. CUERPO PRINCIPAL: Grid de 2 Columnas Equilibradas
+   ========================================================================== */
+
+.main-two-columns {
+  display: grid;
+  grid-template-columns: 5fr 7fr; /* Proporción balanceada */
+  gap: 32px; /* Margen generoso para que respire */
+  align-items: start;
+}
+
+/* 3.1 COLUMNA IZQUIERDA: Mi Docente Tutor */
+.tutor-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tutor-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.header-tag {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #64748B;
+  letter-spacing: 0.05em;
+}
+
+.cycle-pill {
+  font-size: 0.6875rem;
+  font-family: monospace;
+  font-weight: 700;
+  background-color: rgba(32, 178, 170, 0.12);
+  color: #20B2AA;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.tutor-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.tutor-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 2px solid rgba(32, 178, 170, 0.3);
+}
+
+.tutor-dept {
+  font-size: 0.8125rem;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.tutor-room {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #20B2AA;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.tutor-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid #F1F5F9;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contact-link {
+  color: #20B2AA;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.contact-link:hover {
+  text-decoration: underline;
+}
+
+/* ÚNICO BOTÓN PRINCIPAL VERDE MENTA GRANDE */
+.tutor-action-wrapper {
+  margin-top: 20px;
+}
+
+.btn-primary-mint {
+  width: 100%;
+  padding: 14px 20px;
+  background-color: #20B2AA;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(32, 178, 170, 0.2);
+}
+
+.btn-primary-mint:hover {
+  background-color: #1CA099;
+  transform: translateY(-1px);
+}
+
+/* 3.2 COLUMNA DERECHA: Mi Actividad */
+.activity-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* Separación vertical entre sesiones, bitácora y notas */
+}
+
+.card-header-clean {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+/* Sesiones */
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-item {
+  padding: 14px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.session-item:hover {
+  border-color: #CBD5E1;
+}
+
+.session-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.session-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge-status-confirmada {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: rgba(32, 178, 170, 0.15);
+  color: #0E7470;
+}
+
+.badge-modality {
+  font-size: 0.75rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.session-datetime {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.session-theme {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0F172A;
+  margin-bottom: 4px;
+}
+
+.session-detail {
+  font-size: 0.75rem;
+  color: #64748B;
+  background: #FFFFFF;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  margin: 6px 0;
+}
+
+.session-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #E2E8F0;
+  font-size: 0.75rem;
+}
+
+.location-text {
+  color: #64748B;
+}
+
+.btn-cancel-link {
+  background: none;
+  border: none;
+  color: #EF4444;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* Bitácora & Acuerdos */
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.note-item {
+  padding: 12px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+}
+
+.note-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.note-type-pill {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background-color: rgba(32, 178, 170, 0.12);
+  color: #0E7470;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.note-date {
+  font-size: 0.6875rem;
+  color: #94A3B8;
+  font-family: monospace;
+}
+
+.note-content {
+  font-size: 0.8125rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   4. TARJETA 3: 📝 MIS NOTAS PERSONALES (INTERACTIVA)
+   ========================================================================== */
+
+.personal-notes-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.notes-count-badge {
+  font-size: 0.6875rem;
+  font-family: monospace;
+  font-weight: 700;
+  background-color: #F1F5F9;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #E2E8F0;
+}
+
+.new-note-box {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.note-textarea {
+  width: 100%;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  color: #1E293B;
+  background-color: #FFFFFF;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.note-textarea:focus {
+  border-color: #20B2AA;
+  box-shadow: 0 0 0 2px rgba(32, 178, 170, 0.15);
+}
+
+.note-textarea::placeholder {
+  color: #94A3B8;
+}
+
+.new-note-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.note-hint {
+  font-size: 0.6875rem;
+  color: #94A3B8;
+}
+
+.btn-mint-small {
+  background-color: #20B2AA;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-mint-small:hover:not(:disabled) {
+  background-color: #1CA099;
+}
+
+.btn-mint-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Lista de globos de notas personales */
+.personal-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Globo con fondo gris ultra claro (#F1F5F9) */
+.personal-note-bubble {
+  background-color: #F1F5F9; /* Fondo ultra claro solicitado */
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.personal-note-bubble:hover {
+  background-color: #EDF2F7;
+  border-color: #CBD5E1;
+}
+
+.note-bubble-content {
+  flex: 1;
+}
+
+.note-bubble-date {
+  font-size: 0.6875rem;
+  color: #64748B;
+  display: block;
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+
+.note-bubble-text {
+  font-size: 0.8125rem;
+  color: #1E293B;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Botón basurero en rojo suave */
+.btn-delete-note {
+  background: transparent;
+  border: none;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0.65;
+  transition: all 0.2s ease;
+}
+
+.btn-delete-note:hover {
+  opacity: 1;
+  background-color: #FEE2E2; /* Rojo suave */
+  transform: scale(1.1);
+}
+
+/* Estados vacíos */
+.empty-state-card {
+  text-align: center;
+  padding: 24px 16px;
+  color: #64748B;
+  font-size: 0.8125rem;
+  background-color: #F8FAFC;
+  border: 1px dashed #CBD5E1;
+  border-radius: 12px;
+}
+
+.empty-icon {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ==========================================================================
+   5. ADAPTABILIDAD RESPONSIVA
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .main-two-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .mi-tutoria-container {
+    padding: 16px 12px;
+    gap: 20px;
+  }
+
+  .hero-student-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-gpa-box {
+    width: 100%;
+    text-align: left;
+  }
+}

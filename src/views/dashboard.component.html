@@ -1,0 +1,184 @@
+<!-- ==========================================================================
+     VISTA INICIO / DASHBOARD (dashboard.component.html)
+     Pantalla estrictamente de RESUMEN:
+     - Tarjetas de KPI (Métricas): Avance del Plan Escolar, Promedio, Tutorados
+     - Próxima Acción Prioritaria y Próximas Sesiones en formato de lista pequeña
+     - SIN el calendario visual grande (este se ubica exclusivamente en calendario)
+     ========================================================================== -->
+
+<div class="dashboard-summary-view">
+
+  <!-- 1. Tarjeta de Bienvenida del Tutor -->
+  <section class="card" *ngIf="tutorActivo">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: #20B2AA; text-transform: uppercase; letter-spacing: 0.05em;">
+            Resumen Institucional &bull; Periodo 2026-1
+          </span>
+        </div>
+        <h1 style="margin-top: 4px;">Bienvenido, {{ tutorActivo.nombre }}</h1>
+        <p class="text-secondary" style="margin-top: 4px;">
+          {{ tutorActivo.departamento }} &bull; Cubículo de atención: {{ tutorActivo.cubículo || 'A-102' }}
+        </p>
+      </div>
+
+      <button type="button" class="btn-mint" (click)="abrirModalAsignar()">
+        ➕ Asignar Alumno
+      </button>
+    </div>
+  </section>
+
+  <!-- 2. Tarjetas de KPI (Métricas Principales) -->
+  <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
+    <!-- KPI 1: Tutorados Asignados -->
+    <div class="card" style="padding: 20px;">
+      <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+        Tutorados Asignados
+      </span>
+      <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #0F172A; margin: 4px 0;">
+        {{ tutorados?.length || 0 }}
+      </div>
+      <span style="font-size: 0.75rem; color: #20B2AA; font-weight: 600;">
+        ✓ En acompañamiento escolar
+      </span>
+    </div>
+
+    <!-- KPI 2: Alumnos en Riesgo (Atención Prioritaria) -->
+    <div class="card" style="padding: 20px; border-left: 4px solid #FF7F50;">
+      <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+        Alumnos en Riesgo
+      </span>
+      <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #FF7F50; margin: 4px 0;">
+        {{ alumnosEnRiesgo?.length || 0 }}
+      </div>
+      <span style="font-size: 0.75rem; color: #C4431B; font-weight: 600;">
+        ⚠ Atención prioritaria sugerida
+      </span>
+    </div>
+
+    <!-- KPI 3: Promedio General del Grupo -->
+    <div class="card" style="padding: 20px;">
+      <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+        Promedio del Grupo
+      </span>
+      <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #20B2AA; margin: 4px 0;">
+        {{ promedioGeneral || '8.8' }} <span style="font-size: 0.875rem; font-weight: 400; color: #94A3B8;">/ 10</span>
+      </div>
+      <span style="font-size: 0.75rem; color: #64748B;">
+        Rendimiento curricular
+      </span>
+    </div>
+
+    <!-- KPI 4: Avance del Plan Escolar -->
+    <div class="card" style="padding: 20px;">
+      <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">
+        Avance del Plan Escolar
+      </span>
+      <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #0F172A; margin: 4px 0;">
+        85%
+      </div>
+      <!-- Barra de progreso verde menta (#20B2AA) -->
+      <div class="progress-track" style="margin: 6px 0;">
+        <div class="progress-bar-mint" style="width: 85%;"></div>
+      </div>
+      <span style="font-size: 0.6875rem; color: #64748B;">
+        17 de 20 sesiones completadas
+      </span>
+    </div>
+  </div>
+
+  <!-- 3. Tarjeta de Próxima Acción Prioritaria / Próximas Sesiones Agendadas en Lista Pequeña -->
+  <section class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
+      <div>
+        <h2>Próximas Sesiones Agendadas</h2>
+        <p class="text-secondary">Citas y compromisos escolares para los próximos días</p>
+      </div>
+      <button type="button" class="btn-outline" (click)="irACalendario()">
+        Ver Calendario Completo &rarr;
+      </button>
+    </div>
+
+    <!-- Lista pequeña y ordenada de citas (no vista de calendario grande) -->
+    <div class="sessions-compact-list" style="display: flex; flex-direction: column; gap: 12px;">
+      <!-- Caso 1: Acción Prioritaria Urgente (#FF7F50) -->
+      <div
+        class="session-compact-item"
+        style="padding: 14px; border-radius: 12px; background-color: #FFF5F2; border: 1.5px solid rgba(255, 127, 80, 0.4); display: flex; justify-content: space-between; align-items: center; gap: 12px;"
+      >
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="background-color: #FF7F50; color: #FFFFFF; padding: 6px 10px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 0.75rem; min-width: 72px;">
+            HOY<br>11:00 AM
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="font-heading" style="font-weight: 600; font-size: 0.875rem; color: #0F172A;">
+                Carlos Eduardo Peña
+              </span>
+              <span style="font-size: 0.6875rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background-color: #FF7F50; color: #FFFFFF;">
+                URGENTE
+              </span>
+            </div>
+            <p class="text-secondary" style="font-size: 0.75rem; margin-top: 2px;">
+              Ing. en Sistemas &bull; 3er Semestre &bull; Plan de Regularización Preventiva
+            </p>
+          </div>
+        </div>
+
+        <button type="button" class="btn-coral" style="padding: 6px 12px; font-size: 0.75rem;" (click)="irACalendario()">
+          Atender Cita
+        </button>
+      </div>
+
+      <!-- Caso 2: Sesión Virtual -->
+      <div
+        class="session-compact-item"
+        style="padding: 14px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; gap: 12px;"
+      >
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="background-color: #E2E8F0; color: #1E293B; padding: 6px 10px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 0.75rem; min-width: 72px;">
+            JUE 16<br>04:00 PM
+          </div>
+          <div>
+            <span class="font-heading" style="font-weight: 600; font-size: 0.875rem; color: #0F172A;">
+              Mariana Silva Robledo
+            </span>
+            <p class="text-secondary" style="font-size: 0.75rem; margin-top: 2px;">
+              Ing. en Software &bull; 5to Semestre &bull; Validación de Proyecto Terminal (Google Meet)
+            </p>
+          </div>
+        </div>
+
+        <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.75rem;" (click)="irACalendario()">
+          Ver Detalle
+        </button>
+      </div>
+
+      <!-- Caso 3: Sesión Ordinaria Presencial -->
+      <div
+        class="session-compact-item"
+        style="padding: 14px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; gap: 12px;"
+      >
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="background-color: #E2E8F0; color: #1E293B; padding: 6px 10px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 0.75rem; min-width: 72px;">
+            VIE 17<br>09:30 AM
+          </div>
+          <div>
+            <span class="font-heading" style="font-weight: 600; font-size: 0.875rem; color: #0F172A;">
+              Jorge Ramos Morales
+            </span>
+            <p class="text-secondary" style="font-size: 0.75rem; margin-top: 2px;">
+              Tecnologías de Información &bull; 4to Semestre &bull; Asesoría para Beca Universitaria
+            </p>
+          </div>
+        </div>
+
+        <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.75rem;" (click)="irACalendario()">
+          Ver Detalle
+        </button>
+      </div>
+    </div>
+  </section>
+
+</div>

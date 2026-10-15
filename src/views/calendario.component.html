@@ -1,0 +1,174 @@
+<!-- ==========================================================================
+     VISTA CALENDARIO Y SESIONES (calendario.component.html)
+     Pantalla dedicada exclusivamente a la agenda visual:
+     - Cuadrícula completa de la semana expandida (LUN, MAR, MIÉ, JUE, VIE, SÁB)
+     - Etiquetas de eventos redondeadas en colores (#20B2AA, #FF7F50, sky)
+     - Filtros por modalidad y programación de nuevas sesiones
+     ========================================================================== -->
+
+<div class="calendar-view" style="display: flex; flex-direction: column; gap: 24px;">
+
+  <!-- Cabecera de la Agenda -->
+  <section class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: #20B2AA; text-transform: uppercase; letter-spacing: 0.05em;">
+            Agenda Semanal
+          </span>
+          <span class="text-secondary">&bull; Octubre 2026 &bull; Ciclo 2026-1</span>
+        </div>
+        <h1 style="margin-top: 4px;">Calendario Visual de Sesiones y Asesorías</h1>
+        <p class="text-secondary" style="margin-top: 4px;">
+          Visualiza todas tus sesiones escolares programadas, citas virtuales y atenciones urgentes.
+        </p>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <!-- Selector de Filtro de Modalidad -->
+        <div style="display: flex; background: #F1F5F9; padding: 4px; border-radius: 12px; gap: 4px;">
+          <button type="button" class="btn-outline" style="border: none; padding: 6px 12px; background: #FFFFFF; font-size: 0.75rem;">
+            Todas
+          </button>
+          <button type="button" class="btn-outline" style="border: none; padding: 6px 12px; background: transparent; font-size: 0.75rem;">
+            Presenciales
+          </button>
+          <button type="button" class="btn-outline" style="border: none; padding: 6px 12px; background: transparent; font-size: 0.75rem;">
+            Virtuales
+          </button>
+        </div>
+
+        <button type="button" class="btn-mint" (click)="abrirModalAgendar()">
+          ➕ Agendar Nueva Sesión
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CUADRÍCULA COMPLETA DE LA SEMANA EXPANDIDA SIN DISTRACCIONES -->
+  <section class="card" style="padding: 24px;">
+    <div class="calendar-header" style="margin-bottom: 20px;">
+      <div>
+        <h2>Semana Activa: 13 al 18 de Octubre, 2026</h2>
+        <p class="text-secondary">Horarios escolares de 09:00 AM a 06:00 PM</p>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.75rem;">
+          &larr; Semana Anterior
+        </button>
+        <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.75rem;">
+          Semana Siguiente &rarr;
+        </button>
+      </div>
+    </div>
+
+    <!-- Columnas LUN, MAR, MIÉ, JUE, VIE, SÁB -->
+    <div class="calendar-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;">
+
+      <!-- LUNES 13 -->
+      <div class="calendar-day-col" style="min-height: 220px;">
+        <div class="calendar-day-header">
+          <span>LUNES</span>
+          <span class="calendar-day-num">13</span>
+        </div>
+        <div class="event-tag event-tag-mint" style="margin-top: 6px;">
+          <span class="event-time">10:00 AM</span>
+          <strong>Ana Paola Gómez</strong>
+          <div style="font-size: 0.6875rem; color: #0E7470; margin-top: 2px;">Presencial &bull; Cubículo A-102</div>
+        </div>
+      </div>
+
+      <!-- MARTES 14 -->
+      <div class="calendar-day-col" style="min-height: 220px;">
+        <div class="calendar-day-header">
+          <span>MARTES</span>
+          <span class="calendar-day-num">14</span>
+        </div>
+        <div class="event-tag event-tag-sky" style="margin-top: 6px;">
+          <span class="event-time">12:00 PM</span>
+          <strong>Luis Morales</strong>
+          <div style="font-size: 0.6875rem; color: #0369A1; margin-top: 2px;">Virtual &bull; Google Meet</div>
+        </div>
+      </div>
+
+      <!-- MIÉRCOLES 15 (DÍA ACTUAL CON ACCIÓN URGENTE CORAL #FF7F50) -->
+      <div class="calendar-day-col today" style="min-height: 220px; border-color: #20B2AA; background: rgba(32, 178, 170, 0.04);">
+        <div class="calendar-day-header">
+          <span style="color: #20B2AA; font-weight: 700;">MIÉRCOLES (HOY)</span>
+          <span class="calendar-day-num" style="color: #20B2AA;">15</span>
+        </div>
+
+        <!-- Evento Urgente en Coral -->
+        <div class="event-tag event-tag-coral" style="margin-top: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="event-time" style="color: #C4431B;">11:00 AM</span>
+            <span style="font-size: 0.625rem; font-weight: 700; background: #FF7F50; color: #FFF; padding: 1px 6px; border-radius: 9999px;">
+              URGENTE
+            </span>
+          </div>
+          <strong>Carlos Eduardo Peña</strong>
+          <div style="font-size: 0.6875rem; color: #9A2C0C; margin-top: 2px;">
+            Regularización &bull; Cubículo A-102
+          </div>
+        </div>
+      </div>
+
+      <!-- JUEVES 16 -->
+      <div class="calendar-day-col" style="min-height: 220px;">
+        <div class="calendar-day-header">
+          <span>JUEVES</span>
+          <span class="calendar-day-num">16</span>
+        </div>
+        <div class="event-tag event-tag-mint" style="margin-top: 6px;">
+          <span class="event-time">04:00 PM</span>
+          <strong>Mariana Silva</strong>
+          <div style="font-size: 0.6875rem; color: #0E7470; margin-top: 2px;">Presencial &bull; Proyecto Terminal</div>
+        </div>
+      </div>
+
+      <!-- VIERNES 17 -->
+      <div class="calendar-day-col" style="min-height: 220px;">
+        <div class="calendar-day-header">
+          <span>VIERNES</span>
+          <span class="calendar-day-num">17</span>
+        </div>
+        <div class="event-tag event-tag-mint" style="margin-top: 6px;">
+          <span class="event-time">09:30 AM</span>
+          <strong>Jorge Ramos</strong>
+          <div style="font-size: 0.6875rem; color: #0E7470; margin-top: 2px;">Presencial &bull; Beca Escolar</div>
+        </div>
+      </div>
+
+      <!-- SÁBADO 18 -->
+      <div class="calendar-day-col" style="min-height: 220px;">
+        <div class="calendar-day-header">
+          <span>SÁBADO</span>
+          <span class="calendar-day-num">18</span>
+        </div>
+        <div style="margin: auto; text-align: center; color: #94A3B8; font-size: 0.75rem;">
+          Sin sesiones programadas
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Leyenda de colores -->
+    <div style="display: flex; gap: 20px; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #F1F5F9; font-size: 0.75rem; color: #64748B;">
+      <span><strong>Etiquetas:</strong></span>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #FF7F50;"></span>
+        <span>Atención Urgente / Regularización</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #20B2AA;"></span>
+        <span>Sesión Ordinaria Presencial</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #0EA5E9;"></span>
+        <span>Asesoría Virtual (Meet)</span>
+      </div>
+    </div>
+  </section>
+
+</div>

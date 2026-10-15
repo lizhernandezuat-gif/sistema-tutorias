@@ -1,0 +1,256 @@
+<!-- ==========================================================================
+     VISTA MI TUTORÍA (mi-tutoria.component.html)
+     Diseño limpio, directo y minimalista para el estudiante:
+     - Hero superior horizontal con datos clave del estudiante
+     - Grid de 2 columnas equilibradas: Tutor (izq) y Mi Actividad (der)
+     - Nueva sección interactiva de "Notas Personales" con [(ngModel)] y *ngFor
+     ========================================================================== -->
+
+<div class="mi-tutoria-container">
+
+  <!-- ======================================================================== -->
+  <!-- 1. SECCIÓN SUPERIOR (HERO): Perfil Horizontal Limpio a Ancho Completo    -->
+  <!-- ======================================================================== -->
+  <section class="card hero-student-card" *ngIf="estudianteActivo">
+    <div class="hero-student-wrapper">
+      <div class="hero-student-info">
+        <img
+          [src]="estudianteActivo.avatar || 'assets/avatar-ana-lucia.png'"
+          [alt]="estudianteActivo.nombre"
+          class="hero-student-avatar"
+        />
+        <div>
+          <div class="hero-name-row">
+            <h1>{{ estudianteActivo.nombre }}</h1>
+            <span class="status-badge-active">
+              ACTIVO
+            </span>
+          </div>
+
+          <div class="hero-meta-row">
+            <span class="matricula-tag">{{ estudianteActivo.matricula }}</span>
+            <span class="meta-dot">&bull;</span>
+            <span class="career-text">{{ estudianteActivo.carrera }}</span>
+            <span class="meta-dot">&bull;</span>
+            <span class="semester-highlight">📖 {{ estudianteActivo.semestre }}º Semestre</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Promedio General sin botones redundantes -->
+      <div class="hero-gpa-box">
+        <span class="gpa-label">Promedio Acumulado</span>
+        <div class="gpa-value font-heading">
+          {{ estudianteActivo.promedio || '8.8' }}
+          <span class="gpa-scale">/ 10</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================== -->
+  <!-- 2. CUERPO PRINCIPAL: Grid de 2 Columnas Equilibradas                     -->
+  <!-- ======================================================================== -->
+  <div class="main-two-columns">
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- COLUMNA IZQUIERDA: Mi Docente Tutor con ÚNICO Botón Verde Grande     -->
+    <!-- -------------------------------------------------------------------- -->
+    <div class="tutor-column">
+      <section class="card tutor-card" *ngIf="tutor">
+        <div class="tutor-card-header">
+          <div class="header-tag">
+            <span>🎓 Mi Docente Tutor Asignado</span>
+          </div>
+          <span class="cycle-pill">Ciclo 2026-1</span>
+        </div>
+
+        <!-- Perfil del Tutor -->
+        <div class="tutor-profile">
+          <img
+            [src]="tutor.avatar || 'assets/avatar-tutor.png'"
+            [alt]="tutor.nombre"
+            class="tutor-avatar"
+          />
+          <div>
+            <h2>{{ tutor.nombre }}</h2>
+            <p class="tutor-dept">{{ tutor.departamento }}</p>
+            <span class="tutor-room">📍 Cubículo: {{ tutor.cubículo }}</span>
+          </div>
+        </div>
+
+        <!-- Contacto del Tutor -->
+        <div class="tutor-contact-list">
+          <div class="contact-item">
+            <span class="contact-icon">✉️</span>
+            <a [href]="'mailto:' + tutor.email" class="contact-link">{{ tutor.email }}</a>
+          </div>
+          <div class="contact-item">
+            <span class="contact-icon">🏛️</span>
+            <span>Atención presencial en {{ tutor.cubículo }}</span>
+          </div>
+        </div>
+
+        <!-- ÚNICO BOTÓN PRINCIPAL DE LLAMADA A LA ACCIÓN (VERDE MENTA GRANDE) -->
+        <div class="tutor-action-wrapper">
+          <button type="button" class="btn-primary-mint" (click)="abrirModalSolicitar()">
+            <span>📅 Agendar Cita / Solicitar Asesoría</span>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <!-- -------------------------------------------------------------------- -->
+    <!-- COLUMNA DERECHA: Mi Actividad (Citas, Bitácora y Notas Personales)    -->
+    <!-- -------------------------------------------------------------------- -->
+    <div class="activity-column">
+
+      <!-- TARJETA 1: Próximas Sesiones Agendadas -->
+      <section class="card sessions-card">
+        <div class="card-header-clean">
+          <div>
+            <h2>Próximas Sesiones Agendadas ({{ citas?.length || 0 }})</h2>
+            <p class="text-secondary">Citas y asesorías programadas en tu agenda</p>
+          </div>
+        </div>
+
+        <!-- Lista de Sesiones -->
+        <div class="sessions-list" *ngIf="citas && citas.length > 0; else sinCitas">
+          <div class="session-item" *ngFor="let cita of citas">
+            <div class="session-top-row">
+              <div class="session-meta">
+                <span class="badge-status-confirmada">{{ cita.estado }}</span>
+                <span class="badge-modality">{{ cita.modalidad === 'Virtual' ? '💻 Virtual' : '📍 Presencial' }}</span>
+              </div>
+              <div class="session-datetime font-mono">
+                <span class="date">{{ cita.fecha }}</span> &bull; <span class="time">{{ cita.hora }}</span>
+              </div>
+            </div>
+
+            <h3 class="session-theme">{{ cita.tema }}</h3>
+            <p class="session-detail" *ngIf="cita.motivoDetalle">{{ cita.motivoDetalle }}</p>
+
+            <div class="session-footer">
+              <span class="location-text">
+                {{ cita.modalidad === 'Virtual' ? 'Enlace a Google Meet' : ('Lugar: ' + (cita.lugar || tutor?.cubículo)) }}
+              </span>
+              <button
+                type="button"
+                class="btn-cancel-link"
+                *ngIf="cita.estado !== 'Cancelada'"
+                (click)="cancelarCita(cita.id)"
+              >
+                Cancelar cita
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #sinCitas>
+          <div class="empty-state-card">
+            <span class="empty-icon">📅</span>
+            <p>No tienes citas o asesorías agendadas actualmente.</p>
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- TARJETA 2: Bitácora & Acuerdos con el Tutor -->
+      <section class="card notes-card">
+        <div class="card-header-clean">
+          <div>
+            <h2>Bitácora & Acuerdos con el Tutor ({{ asignacion?.notas?.length || 0 }})</h2>
+            <p class="text-secondary">Compromisos académicos y notas de seguimiento escolar</p>
+          </div>
+        </div>
+
+        <div class="notes-list" *ngIf="asignacion?.notas && asignacion.notas.length > 0; else sinNotas">
+          <div class="note-item" *ngFor="let nota of asignacion.notas">
+            <div class="note-top-row">
+              <span class="note-type-pill">{{ nota.tipo }}</span>
+              <span class="note-date">{{ nota.fecha }}</span>
+            </div>
+            <p class="note-content">{{ nota.contenido }}</p>
+          </div>
+        </div>
+
+        <ng-template #sinNotas>
+          <div class="empty-state-card">
+            <span class="empty-icon">📝</span>
+            <p>No hay notas o acuerdos registrados aún en tu bitácora escolar.</p>
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- ================================================================== -->
+      <!-- TARJETA 3: 📝 MIS NOTAS PERSONALES (FUNCIONALIDAD INTERACTIVA)     -->
+      <!-- ================================================================== -->
+      <section class="card personal-notes-card">
+        <!-- Cabecera de la Tarjeta con fuente Outfit -->
+        <div class="card-header-clean" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2 class="font-heading" style="font-size: 1.1rem; color: #0F172A;">
+              📝 Mis Notas Personales
+            </h2>
+            <p class="text-secondary">Espacio privado para tus apuntes, dudas y recordatorios</p>
+          </div>
+          <span class="notes-count-badge" *ngIf="notas?.length">
+            {{ notas.length }}
+          </span>
+        </div>
+
+        <!-- Zona de Entrada: Textarea / Input con [(ngModel)] y Botón Verde "+ Añadir" -->
+        <div class="new-note-box">
+          <textarea
+            [(ngModel)]="nuevaNota"
+            (keydown.enter)="$event.preventDefault(); agregarNota()"
+            placeholder="Escribe un recordatorio o duda para tu próxima asesoría..."
+            rows="2"
+            class="note-textarea"
+          ></textarea>
+
+          <div class="new-note-actions">
+            <span class="note-hint">Presiona Enter o haz clic en Añadir</span>
+            <button
+              type="button"
+              class="btn-mint-small"
+              [disabled]="!nuevaNota || !nuevaNota.trim()"
+              (click)="agregarNota()"
+            >
+              <span>+ Añadir</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de Notas: *ngFor con globos en fondo gris ultra claro (#F1F5F9) -->
+        <div class="personal-notes-list" *ngIf="notas && notas.length > 0; else sinNotasPersonales">
+          <div class="personal-note-bubble" *ngFor="let nota of notas">
+            <div class="note-bubble-content">
+              <span class="note-bubble-date">{{ nota.fecha }}</span>
+              <p class="note-bubble-text">{{ nota.texto }}</p>
+            </div>
+
+            <!-- Botón pequeño para eliminar (ícono rojo suave) -->
+            <button
+              type="button"
+              class="btn-delete-note"
+              (click)="eliminarNota(nota.id)"
+              title="Eliminar esta nota personal"
+              aria-label="Eliminar nota"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+
+        <ng-template #sinNotasPersonales>
+          <div class="empty-state-card" style="padding: 20px;">
+            <p style="font-size: 0.75rem; color: #94A3B8;">Aún no tienes notas personales guardadas. Escribe arriba para añadir tu primera nota.</p>
+          </div>
+        </ng-template>
+      </section>
+
+    </div>
+
+  </div>
+
+</div>

@@ -1,0 +1,168 @@
+<!-- ==========================================================================
+     VISTA ALUMNOS / MI TUTORÍA (alumnos.component.html)
+     Pantalla dedicada al directorio ordenado de tutorados:
+     - Tarjetas detalladas de los perfiles (estilo "Ana Lucía Morales Rivera")
+     - Foto, nombre, matrícula, semestre destacado, carrera, promedio y status
+     - Barra de búsqueda y filtros de estado y semestre
+     ========================================================================== -->
+
+<div class="alumnos-view" style="display: flex; flex-direction: column; gap: 24px;">
+
+  <!-- 1. Cabecera con Filtros y Buscador de Alumnos -->
+  <section class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.75rem; font-weight: 700; color: #20B2AA; text-transform: uppercase; letter-spacing: 0.05em;">
+            Directorio Escolar
+          </span>
+          <span class="text-secondary">&bull; {{ tutorados?.length || 0 }} alumnos asignados</span>
+        </div>
+        <h1 style="margin-top: 4px;">Tutorados / Alumnos Asignados</h1>
+        <p class="text-secondary" style="margin-top: 4px;">
+          Consulta de expedientes académicos, avance por semestre y seguimiento personalizado.
+        </p>
+      </div>
+
+      <button type="button" class="btn-mint" (click)="abrirModalAsignar()">
+        ➕ Asignar Nuevo Alumno
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda -->
+    <div style="display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #F1F5F9; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 240px; position: relative;">
+        <input
+          type="text"
+          placeholder="Buscar por nombre, matrícula o carrera..."
+          [(ngModel)]="busqueda"
+          style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid #E2E8F0; font-size: 0.8125rem; font-family: 'Inter', sans-serif;"
+        />
+      </div>
+
+      <!-- Filtro de Semestre -->
+      <select
+        [(ngModel)]="filtroSemestre"
+        style="padding: 10px 14px; border-radius: 12px; border: 1px solid #E2E8F0; font-size: 0.8125rem; background: #FFFFFF; font-family: 'Inter', sans-serif;"
+      >
+        <option value="TODOS">Todos los Semestres</option>
+        <option value="1">1er Semestre</option>
+        <option value="2">2do Semestre</option>
+        <option value="3">3er Semestre</option>
+        <option value="4">4to Semestre</option>
+        <option value="5">5to Semestre</option>
+        <option value="6">6to Semestre</option>
+      </select>
+
+      <!-- Filtro de Estado -->
+      <select
+        [(ngModel)]="filtroEstado"
+        style="padding: 10px 14px; border-radius: 12px; border: 1px solid #E2E8F0; font-size: 0.8125rem; background: #FFFFFF; font-family: 'Inter', sans-serif;"
+      >
+        <option value="TODOS">Todos los Estados</option>
+        <option value="ACTIVO">Activo (Regular)</option>
+        <option value="EN_RIESGO">En Riesgo (Alerta)</option>
+        <option value="CONDICIONADO">Condicionado</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- 2. GRID ORDENADO DE TARJETAS DETALLADAS DE PERFILES -->
+  <section class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2>Alumnos en Seguimiento Curricular</h2>
+      <span class="text-secondary" style="font-size: 0.75rem;">
+        Mostrando {{ tutoradosFiltrados?.length || tutorados?.length || 0 }} expedientes
+      </span>
+    </div>
+
+    <!-- Cuadrícula de Alumnos con Estilo "Ana Lucía Morales Rivera" -->
+    <div class="students-detailed-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+      <div
+        class="card student-detail-card"
+        *ngFor="let item of (tutoradosFiltrados || tutorados)"
+        style="padding: 20px; border: 1px solid #E2E8F0; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s ease;"
+      >
+        <div>
+          <!-- Cabecera de la Tarjeta con Avatar y Estatus -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <img
+                [src]="item.estudiante.avatar || 'assets/avatar-default.png'"
+                [alt]="item.estudiante.nombre"
+                style="width: 46px; height: 46px; border-radius: 12px; object-fit: cover; border: 2px solid #E2E8F0;"
+              />
+              <div>
+                <h3 style="font-size: 0.95rem; font-weight: 600; color: #0F172A; line-height: 1.2;">
+                  {{ item.estudiante.nombre }}
+                </h3>
+                <span style="font-family: monospace; font-size: 0.75rem; color: #64748B;">
+                  {{ item.estudiante.matricula }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Estatus Badge -->
+            <span
+              class="student-status-badge"
+              [ngClass]="item.estado === 'EN_RIESGO' ? 'status-riesgo' : 'status-activo'"
+              style="font-size: 0.6875rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px; text-transform: uppercase;"
+            >
+              {{ item.estado }}
+            </span>
+          </div>
+
+          <!-- Información Curricular: Semestre y Carrera -->
+          <div style="display: flex; align-items: center; gap: 8px; margin: 10px 0; flex-wrap: wrap;">
+            <!-- Etiqueta Destacada del Semestre -->
+            <span style="font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 8px; background-color: rgba(32, 178, 170, 0.12); color: #0E7470;">
+              📖 {{ item.estudiante.semestre }}º Semestre
+            </span>
+
+            <span style="font-size: 0.75rem; color: #64748B;">
+              {{ item.estudiante.carrera }}
+            </span>
+          </div>
+
+          <!-- Datos Académicos Clave -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #F8FAFC; padding: 10px; border-radius: 10px; margin-top: 12px;">
+            <div>
+              <span class="text-secondary" style="font-size: 0.6875rem; display: block;">Promedio General</span>
+              <span class="font-heading" style="font-size: 1.1rem; font-weight: 700;" [style.color]="item.estudiante.promedio >= 8.5 ? '#20B2AA' : item.estudiante.promedio >= 7.0 ? '#D97706' : '#FF7F50'">
+                {{ item.estudiante.promedio }}
+              </span>
+            </div>
+
+            <div>
+              <span class="text-secondary" style="font-size: 0.6875rem; display: block;">Periodo</span>
+              <span style="font-size: 0.8125rem; font-weight: 600; color: #1E293B;">
+                {{ item.periodoEscolar || '2026-1' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de Acción de la Ficha -->
+        <div style="display: flex; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #F1F5F9;">
+          <button
+            type="button"
+            class="btn-outline"
+            style="flex: 1; padding: 8px; font-size: 0.75rem; text-align: center;"
+            (click)="seleccionarTutorado(item)"
+          >
+            Ver Expediente
+          </button>
+          <button
+            type="button"
+            class="btn-mint"
+            style="padding: 8px 12px; font-size: 0.75rem;"
+            (click)="agendarCitaCon(item)"
+          >
+            📅 Cita
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>

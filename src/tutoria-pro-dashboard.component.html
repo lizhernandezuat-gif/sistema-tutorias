@@ -1,0 +1,488 @@
+<!-- ==========================================================================
+     TUTORÍA PRO - DASHBOARD MODERNO REFACTORIZADO Y MODULAR
+     Componente Angular Principal: tutoria-pro-dashboard.component.html
+     ========================================================================== -->
+
+<div class="dashboard-layout">
+
+  <!-- ======================================================================== -->
+  <!-- 1. SIDEBAR (IZQUIERDA): Fondo #1E293B, Texto Blanco, Oculto en Móvil     -->
+  <!-- ======================================================================== -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <!-- Marca Tutoría Pro -->
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">🎓</div>
+        <div>
+          <div class="sidebar-brand-title">Asesoría<span>Pro</span></div>
+          <span class="sidebar-brand-sub">Gestión Escolar</span>
+        </div>
+      </div>
+
+      <!-- Menú de Navegación Funcional -->
+      <ul class="sidebar-menu">
+        <li class="sidebar-menu-item" [class.active]="seccionActiva === 'dashboard'">
+          <button type="button" (click)="seccionActiva = 'dashboard'">
+            <span>📊 Inicio / Dashboard</span>
+          </button>
+        </li>
+        <li class="sidebar-menu-item" [class.active]="seccionActiva === 'tutorados'">
+          <button type="button" (click)="seccionActiva = 'tutorados'">
+            <span>👥 {{ esRolAlumno ? 'Mi Asesoría' : 'Tutorados / Alumnos' }}</span>
+            <span class="sidebar-badge" *ngIf="!esRolAlumno && tutorados?.length">{{ tutorados.length }}</span>
+          </button>
+        </li>
+        <li class="sidebar-menu-item" [class.active]="seccionActiva === 'calendario'">
+          <button type="button" (click)="seccionActiva = 'calendario'">
+            <span>📅 Calendario y Sesiones</span>
+          </button>
+        </li>
+        <!-- Opción exclusiva del Alumno: Mis Notas Personales -->
+        <li class="sidebar-menu-item" *ngIf="esRolAlumno" [class.active]="seccionActiva === 'notas'">
+          <button type="button" (click)="seccionActiva = 'notas'">
+            <span>📝 Mis Notas Personales</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Perfil del Tutor Autenticado -->
+    <div class="sidebar-user" *ngIf="tutorActivo">
+      <img
+        [src]="tutorActivo.avatar || 'assets/avatar-default.png'"
+        [alt]="tutorActivo.nombre"
+        class="sidebar-user-avatar"
+      />
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name">{{ tutorActivo.nombre }}</div>
+        <div class="sidebar-user-role">{{ tutorActivo.departamento || 'Docente Tutor' }}</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ======================================================================== -->
+  <!-- 2. CONTENIDO CENTRAL: Fondo #F8FAFC, Modularizado según Menú de Nav      -->
+  <!-- ======================================================================== -->
+  <main class="main-content">
+
+    <!-- Top Header Limpio (SIN ícono de hamburguesa junto al título) -->
+    <header style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px;">
+      <div>
+        <h1 style="font-size: 1.4rem; font-family: 'Outfit', sans-serif; font-weight: 600; color: #0F172A;">
+          <ng-container [ngSwitch]="seccionActiva">
+            <span *ngSwitchCase="'dashboard'">Inicio / Dashboard Resumen</span>
+            <span *ngSwitchCase="'calendario'">Calendario y Sesiones</span>
+            <span *ngSwitchCase="'tutorados'">{{ esRolAlumno ? 'Mi Asesoría Asignada' : 'Tutorados / Directorio de Alumnos' }}</span>
+            <span *ngSwitchCase="'notas'">📝 Mis Notas Personales</span>
+          </ng-container>
+        </h1>
+        <p class="text-secondary" style="font-size: 0.75rem; margin-top: 2px;">
+          Portal del Tutor &bull; Universidad Tecnológica &bull; Periodo Activo 2026-1
+        </p>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 9999px; background: rgba(32, 178, 170, 0.12); color: #0E7470;">
+          Docente Activo
+        </span>
+      </div>
+    </header>
+
+    <!-- ==================================================================== -->
+    <!-- VISTA A: INICIO / DASHBOARD (Resumen Estricto con KPIs y Lista Corta) -->
+    <!-- ==================================================================== -->
+    <ng-container *ngIf="seccionActiva === 'dashboard'">
+      <!-- Tarjeta de Bienvenida -->
+      <section class="card" *ngIf="tutorActivo">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <span style="font-size: 0.75rem; font-weight: 700; color: #20B2AA; text-transform: uppercase;">
+              Resumen Ejecutivo
+            </span>
+            <h2 style="margin-top: 4px; font-size: 1.3rem;">Bienvenido, {{ tutorActivo.nombre }}</h2>
+            <p class="text-secondary" style="margin-top: 2px;">
+              {{ tutorActivo.departamento }} &bull; Cubículo de asesoría: {{ tutorActivo.cubículo || 'A-102' }}
+            </p>
+          </div>
+
+          <button type="button" class="btn-mint" (click)="abrirModalAsignar()">
+            ➕ Asignar Alumno
+          </button>
+        </div>
+      </section>
+
+      <!-- Tarjetas de KPI (Métricas Principales) -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 20px;">
+          <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Tutorados Asignados</span>
+          <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #0F172A; margin: 4px 0;">
+            {{ tutorados?.length || 0 }}
+          </div>
+          <span style="font-size: 0.75rem; color: #20B2AA; font-weight: 600;">✓ Acompañamiento escolar</span>
+        </div>
+
+        <div class="card" style="padding: 20px; border-left: 4px solid #FF7F50;">
+          <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Alumnos en Riesgo</span>
+          <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #FF7F50; margin: 4px 0;">
+            {{ alumnosEnRiesgo?.length || 0 }}
+          </div>
+          <span style="font-size: 0.75rem; color: #C4431B; font-weight: 600;">⚠ Atención prioritaria</span>
+        </div>
+
+        <div class="card" style="padding: 20px;">
+          <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Promedio del Grupo</span>
+          <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #20B2AA; margin: 4px 0;">
+            {{ promedioGeneral || '8.8' }} <span style="font-size: 0.875rem; font-weight: 400; color: #94A3B8;">/ 10</span>
+          </div>
+          <span style="font-size: 0.75rem; color: #64748B;">Rendimiento curricular</span>
+        </div>
+
+        <div class="card" style="padding: 20px;">
+          <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Avance del Plan</span>
+          <div class="font-heading" style="font-size: 1.75rem; font-weight: 700; color: #0F172A; margin: 4px 0;">85%</div>
+          <div class="progress-track" style="margin: 6px 0;">
+            <div class="progress-bar-mint" style="width: 85%;"></div>
+          </div>
+          <span style="font-size: 0.6875rem; color: #64748B;">17 de 20 sesiones</span>
+        </div>
+      </div>
+
+      <!-- Próximas Sesiones Agendadas en Formato de Lista Pequeña -->
+      <section class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9;">
+          <div>
+            <h2>Próximas Sesiones Agendadas</h2>
+            <p class="text-secondary">Citas y compromisos escolares para los próximos días</p>
+          </div>
+          <button type="button" class="btn-outline" (click)="seccionActiva = 'calendario'">
+            Ver Calendario Completo &rarr;
+          </button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="padding: 14px; border-radius: 12px; background-color: #FFF5F2; border: 1.5px solid rgba(255, 127, 80, 0.4); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="background-color: #FF7F50; color: #FFFFFF; padding: 6px 10px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 0.75rem; min-width: 68px;">
+                HOY<br>11:00 AM
+              </div>
+              <div>
+                <span class="font-heading" style="font-weight: 600; font-size: 0.875rem;">Carlos Eduardo Peña</span>
+                <span style="font-size: 0.6875rem; font-weight: 700; margin-left: 8px; padding: 2px 8px; border-radius: 9999px; background-color: #FF7F50; color: #FFFFFF;">URGENTE</span>
+                <p class="text-secondary" style="font-size: 0.75rem; margin-top: 2px;">Ing. en Sistemas &bull; 3er Semestre &bull; Regularización</p>
+              </div>
+            </div>
+            <button type="button" class="btn-coral" style="padding: 6px 12px; font-size: 0.75rem;" (click)="seccionActiva = 'calendario'">
+              Atender Cita
+            </button>
+          </div>
+
+          <div style="padding: 14px; border-radius: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="background-color: #E2E8F0; color: #1E293B; padding: 6px 10px; border-radius: 8px; text-align: center; font-weight: 700; font-size: 0.75rem; min-width: 68px;">
+                JUE 16<br>04:00 PM
+              </div>
+              <div>
+                <span class="font-heading" style="font-weight: 600; font-size: 0.875rem;">Mariana Silva Robledo</span>
+                <p class="text-secondary" style="font-size: 0.75rem; margin-top: 2px;">Ing. en Software &bull; 5to Semestre &bull; Proyecto Terminal (Meet)</p>
+              </div>
+            </div>
+            <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.75rem;" (click)="seccionActiva = 'calendario'">
+              Ver Detalle
+            </button>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- ==================================================================== -->
+    <!-- VISTA B: CALENDARIO Y SESIONES (Cuadrícula Completa de la Semana)     -->
+    <!-- ==================================================================== -->
+    <ng-container *ngIf="seccionActiva === 'calendario'">
+      <section class="card">
+        <div class="calendar-header">
+          <div>
+            <h2>Calendario Visual de Sesiones y Asesorías</h2>
+            <p class="text-secondary">Semana Activa: 13 al 18 de Octubre, 2026 &bull; Vista expandida sin distracciones</p>
+          </div>
+          <button type="button" class="btn-mint" (click)="abrirModalAgendar()">
+            ➕ Agendar Nueva Sesión
+          </button>
+        </div>
+
+        <!-- Cuadrícula LUN, MAR, MIÉ, JUE, VIE, SÁB -->
+        <div class="calendar-grid">
+          <div class="calendar-day-col">
+            <div class="calendar-day-header"><span>LUN</span><span class="calendar-day-num">13</span></div>
+            <div class="event-tag event-tag-mint"><span class="event-time">10:00 AM</span><span>Ana Paola Gómez</span></div>
+          </div>
+          <div class="calendar-day-col">
+            <div class="calendar-day-header"><span>MAR</span><span class="calendar-day-num">14</span></div>
+            <div class="event-tag event-tag-sky"><span class="event-time">12:00 PM</span><span>Luis Morales (Meet)</span></div>
+          </div>
+          <div class="calendar-day-col today">
+            <div class="calendar-day-header"><span style="color: #20B2AA;">MIÉ (HOY)</span><span class="calendar-day-num" style="color: #20B2AA;">15</span></div>
+            <div class="event-tag event-tag-coral"><span class="event-time">11:00 AM</span><span>Carlos Peña (Urgente)</span></div>
+          </div>
+          <div class="calendar-day-col">
+            <div class="calendar-day-header"><span>JUE</span><span class="calendar-day-num">16</span></div>
+            <div class="event-tag event-tag-mint"><span class="event-time">04:00 PM</span><span>Mariana Silva</span></div>
+          </div>
+          <div class="calendar-day-col">
+            <div class="calendar-day-header"><span>VIE</span><span class="calendar-day-num">17</span></div>
+            <div class="event-tag event-tag-mint"><span class="event-time">09:30 AM</span><span>Jorge Ramos</span></div>
+          </div>
+          <div class="calendar-day-col">
+            <div class="calendar-day-header"><span>SÁB</span><span class="calendar-day-num">18</span></div>
+            <span style="font-size: 0.6875rem; color: #94A3B8; text-align: center; margin: auto;">Libre</span>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- ==================================================================== -->
+    <!-- VISTA C: ALUMNOS / MI TUTORÍA (Directorio y Fichas Detalladas)       -->
+    <!-- ==================================================================== -->
+    <ng-container *ngIf="seccionActiva === 'tutorados'">
+      <section class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2>Directorio de Alumnos Asignados ({{ tutorados?.length || 0 }})</h2>
+            <p class="text-secondary">Expediente curricular detallado por semestre y estatus académico</p>
+          </div>
+          <button type="button" class="btn-mint" (click)="abrirModalAsignar()">
+            ➕ Asignar Alumno
+          </button>
+        </div>
+
+        <!-- Grid de tarjetas detalladas de perfiles (Estilo Ana Lucía Morales Rivera) -->
+        <div class="students-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+          <div class="student-item-card" *ngFor="let item of tutorados" style="padding: 20px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <img [src]="item.estudiante.avatar || 'assets/avatar-default.png'" [alt]="item.estudiante.nombre" style="width: 44px; height: 44px; border-radius: 12px; object-fit: cover;" />
+                  <div>
+                    <h3 style="font-size: 0.95rem; font-weight: 600;">{{ item.estudiante.nombre }}</h3>
+                    <span style="font-size: 0.75rem; color: #64748B; font-family: monospace;">{{ item.estudiante.matricula }}</span>
+                  </div>
+                </div>
+                <span class="student-status-badge" [ngClass]="item.estado === 'EN_RIESGO' ? 'status-riesgo' : 'status-activo'">
+                  {{ item.estado }}
+                </span>
+              </div>
+
+              <!-- Indicador de Semestre y Carrera -->
+              <div style="margin: 12px 0 6px 0; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; background-color: rgba(32, 178, 170, 0.15); color: #0E7470;">
+                  📖 {{ item.estudiante.semestre }}º Semestre
+                </span>
+                <span style="font-size: 0.75rem; color: #64748B;">{{ item.estudiante.carrera }}</span>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #F1F5F9;">
+              <span style="font-size: 0.75rem; color: #64748B;">
+                Promedio: <strong style="color: #0F172A; font-size: 0.875rem;">{{ item.estudiante.promedio }}</strong>
+              </span>
+              <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.75rem;" (click)="seleccionarTutorado(item)">
+                Ver Expediente
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+
+    <!-- ==================================================================== -->
+    <!-- VISTA D: 📝 MIS NOTAS PERSONALES (Exclusiva del Alumno)              -->
+    <!-- ==================================================================== -->
+    <ng-container *ngIf="seccionActiva === 'notas'">
+      <section class="card">
+        <div class="card-header-clean" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2 class="font-heading" style="font-size: 1.2rem; color: #0F172A;">
+              📝 Mis Notas Personales
+            </h2>
+            <p class="text-secondary">Espacio privado y seguro para tus apuntes, dudas y recordatorios</p>
+          </div>
+          <span class="cycle-pill">
+            {{ notas?.length || 0 }} notas guardadas
+          </span>
+        </div>
+
+        <!-- Formulario para Nueva Nota -->
+        <div class="new-note-box" style="margin-top: 16px;">
+          <textarea
+            [(ngModel)]="nuevaNota"
+            (keydown.enter)="$event.preventDefault(); agregarNota()"
+            placeholder="Escribe un recordatorio o duda para tu próxima asesoría..."
+            rows="2"
+            class="note-textarea"
+          ></textarea>
+
+          <div class="new-note-actions">
+            <span class="note-hint">Presiona Enter o haz clic en Añadir</span>
+            <button
+              type="button"
+              class="btn-mint-small"
+              [disabled]="!nuevaNota || !nuevaNota.trim()"
+              (click)="agregarNota()"
+            >
+              + Añadir
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de Notas Personales -->
+        <div class="personal-notes-list" style="margin-top: 20px;" *ngIf="notas && notas.length > 0; else sinNotasDedicadas">
+          <div class="personal-note-bubble" *ngFor="let nota of notas">
+            <div class="note-bubble-content">
+              <span class="note-bubble-date">{{ nota.fecha }}</span>
+              <p class="note-bubble-text">{{ nota.texto }}</p>
+            </div>
+
+            <button
+              type="button"
+              class="btn-delete-note"
+              (click)="eliminarNota(nota.id)"
+              title="Eliminar esta nota personal"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+
+        <ng-template #sinNotasDedicadas>
+          <div class="empty-state-card" style="margin-top: 20px;">
+            <span class="empty-icon">📝</span>
+            <p>Aún no tienes notas personales guardadas. Escribe arriba para añadir tu primera nota.</p>
+          </div>
+        </ng-template>
+      </section>
+    </ng-container>
+
+  </main>
+
+  <!-- ======================================================================== -->
+  <!-- 3. PANEL DERECHO: Un solo botón principal en Próxima Acción              -->
+  <!-- ======================================================================== -->
+  <aside class="right-panel">
+
+    <!-- 3.1 Tarjeta Urgente: "Próxima Acción" con UN SOLO BOTÓN PRINCIPAL -->
+    <div class="card card-urgent">
+      <div class="urgent-badge">
+        <span class="urgent-badge-dot"></span>
+        <span>Próxima Acción Prioritaria</span>
+      </div>
+
+      <div *ngIf="alumnosEnRiesgo && alumnosEnRiesgo.length > 0; else sinUrgencias">
+        <h3 style="color: #0F172A; margin-bottom: 6px;">
+          Atención Prioritaria: {{ alumnosEnRiesgo.length }} Alumnos en Riesgo
+        </h3>
+        <p class="text-secondary" style="margin-bottom: 14px; font-size: 0.8125rem;">
+          Se requiere acordar plan de regularización y cita de seguimiento escolar antes de las evaluaciones parciales.
+        </p>
+
+        <div style="padding: 12px; background-color: #FFF5F2; border-radius: 12px; margin-bottom: 14px; border: 1px solid #FFD1C2;">
+          <div style="font-weight: 600; font-size: 0.8125rem; color: #9A2C0C;">
+            {{ alumnosEnRiesgo[0]?.estudiante?.nombre }}
+          </div>
+          <div style="font-size: 0.75rem; color: #C4431B;">
+            Promedio: {{ alumnosEnRiesgo[0]?.estudiante?.promedio }} &bull; Semestre {{ alumnosEnRiesgo[0]?.estudiante?.semestre }}
+          </div>
+        </div>
+
+        <!-- UN SOLO BOTÓN PRINCIPAL -->
+        <button
+          type="button"
+          class="btn-coral"
+          style="width: 100%;"
+          (click)="seleccionarTutorado(alumnosEnRiesgo[0])"
+        >
+          🚨 Atender Caso Prioritario
+        </button>
+      </div>
+
+      <ng-template #sinUrgencias>
+        <h3 style="color: #0F172A; margin-bottom: 6px;">Todo al día en tu grupo</h3>
+        <p class="text-secondary" style="margin-bottom: 14px; font-size: 0.8125rem;">
+          No tienes alertas académicas activas sin atender. ¡Excelente labor de seguimiento!
+        </p>
+        <button type="button" class="btn-mint" style="width: 100%;" (click)="seccionActiva = 'tutorados'">
+          👥 Ver Directorio de Alumnos
+        </button>
+      </ng-template>
+    </div>
+
+    <!-- 3.2 Resumen del Periodo & Progreso Verde Menta (#20B2AA) -->
+    <div class="card">
+      <h3 style="margin-bottom: 4px;">Resumen del Periodo</h3>
+      <p class="text-secondary" style="margin-bottom: 16px;">Avance general de sesiones</p>
+
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 600;">
+          <span style="color: #64748B;">Meta de Asesorías</span>
+          <span style="color: #20B2AA;">85%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-bar-mint" style="width: 85%;"></div>
+        </div>
+        <p class="text-secondary" style="font-size: 0.6875rem;">17 de 20 sesiones completadas</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #F1F5F9;">
+        <div style="padding: 12px; background: #F8FAFC; border-radius: 12px;">
+          <span class="text-secondary" style="font-size: 0.6875rem; text-transform: uppercase; font-weight: 700;">Tutorados</span>
+          <div class="font-heading" style="font-size: 1.35rem; font-weight: 700; color: #0F172A;">
+            {{ tutorados?.length || 0 }}
+          </div>
+        </div>
+
+        <div style="padding: 12px; background: #F8FAFC; border-radius: 12px;">
+          <span class="text-secondary" style="font-size: 0.6875rem; text-transform: uppercase; font-weight: 700;">Promedio</span>
+          <div class="font-heading" style="font-size: 1.35rem; font-weight: 700; color: #20B2AA;">
+            {{ promedioGeneral || '8.8' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3.3 Acción Rápida Única (SIN tarjetas ni botones redundantes de calendario) -->
+    <div class="card" style="display: flex; flex-direction: column; gap: 10px;">
+      <h4 style="font-size: 0.75rem; text-transform: uppercase; color: #64748B; letter-spacing: 0.05em;">
+        Gestión Rápida
+      </h4>
+      <button type="button" class="btn-mint" style="width: 100%;" (click)="abrirModalAsignar()">
+        ➕ Asignar Nuevo Alumno
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ======================================================================== -->
+  <!-- 4. BOTTOM TAB BAR EN MÓVILES                                             -->
+  <!-- ======================================================================== -->
+  <nav class="bottom-tab-bar">
+    <button type="button" class="bottom-tab-item" [class.active]="seccionActiva === 'dashboard'" (click)="seccionActiva = 'dashboard'">
+      <span class="bottom-tab-icon">📊</span>
+      <span>Inicio</span>
+    </button>
+    <button type="button" class="bottom-tab-item" [class.active]="seccionActiva === 'tutorados'" (click)="seccionActiva = 'tutorados'">
+      <span class="bottom-tab-icon">👥</span>
+      <span>{{ esRolAlumno ? 'Asesoría' : 'Alumnos' }}</span>
+    </button>
+    <button type="button" class="bottom-tab-item" [class.active]="seccionActiva === 'calendario'" (click)="seccionActiva = 'calendario'">
+      <span class="bottom-tab-icon">📅</span>
+      <span>Agenda</span>
+    </button>
+    <button *ngIf="esRolAlumno" type="button" class="bottom-tab-item" [class.active]="seccionActiva === 'notas'" (click)="seccionActiva = 'notas'">
+      <span class="bottom-tab-icon">📝</span>
+      <span>Notas</span>
+    </button>
+    <button *ngIf="!esRolAlumno" type="button" class="bottom-tab-item" (click)="abrirModalAsignar()">
+      <span class="bottom-tab-icon">➕</span>
+      <span>Asignar</span>
+    </button>
+  </nav>
+
+</div>

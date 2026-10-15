@@ -1,0 +1,8 @@
+{
+  "name": "UAT - Sistema Institucional de Asesorías",
+  "description": "Sistema Institucional de Asesorías de la Universidad Autónoma de Tamaulipas (UAT). Acompañamiento académico, gestión de tutorados y seguimiento escolar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

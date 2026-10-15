@@ -1,0 +1,748 @@
+import React, { useState, useEffect } from 'react';
+import { Tutor, EstudianteCatalogo, AsignacionTutorado, RolSimulado, CitaAsesoria } from './types/tutoria';
+import { tutoriaService } from './services/tutoriaService';
+import { Sidebar, SeccionNavegacion } from './components/Sidebar';
+import { Header } from './components/Header';
+import { StatCard } from './components/StatCard';
+import { RightPanel } from './components/RightPanel';
+import { AsignarTutoradoModal } from './components/AsignarTutoradoModal';
+import { DetalleTutoradoModal } from './components/DetalleTutoradoModal';
+import { AlumnoPortalView } from './components/AlumnoPortalView';
+import { CalendarioSesionesView } from './components/CalendarioSesionesView';
+import { TutoradosDashboard } from './components/TutoradosDashboard';
+import { ArchivosEvidenciasView } from './components/ArchivosEvidenciasView';
+import { ActividadesTeamsView } from './components/ActividadesTeamsView';
+import { NotasPersonalesView } from './components/NotasPersonalesView';
+import { BitacoraNotasView } from './components/BitacoraNotasView';
+import { MiPerfilView } from './components/MiPerfilView';
+import { AuthView } from './components/AuthView';
+import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { formatSemestre } from './utils/tutoriaUtils';
+import {
+  Users,
+  Award,
+  AlertTriangle,
+  Clock,
+  UserPlus,
+  ArrowRight,
+  MapPin,
+  Video,
+  GraduationCap,
+  X,
+  Trash2,
+  CalendarX,
+  CheckCircle2
+} from 'lucide-react';
+
+function AppContent() {
+  const {
+    sesion,
+    logout: contextLogout,
+    isAuthenticated: authIsAuthenticated,
+    cambiarRolActivo
+  } = useAuth();
+
+  // ========================================================
+  // 1. ELEVACIÓN DEL ESTADO DE AUTENTICACIÓN (State Hoisting)
+  // ========================================================
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<'tutor' | 'alumno'>('tutor');
+
+  // Estado de perfiles y vistas activas
+  const [rolActivo, setRolActivo] = useState<RolSimulado>('TUTOR');
+  const [tutores, setTutores] = useState<Tutor[]>([]);
+  const [catalogoEstudiantes, setCatalogoEstudiantes] = useState<EstudianteCatalogo[]>([]);
+  // Estado para cancelación y eliminación reactiva de citas desde el dashboard
+  const [citaACancelarModal, setCitaACancelarModal] = useState<CitaAsesoria | null>(null);
+  const [procesandoCancelacion, setProcesandoCancelacion] = useState(false);
+  const [tutorActivo, setTutorActivo] = useState<Tutor>({
+    id: 'tutor-activo',
+    nombre: 'Docente Tutor',
+    email: 'docente@uat.edu.mx',
+    departamento: 'Facultad de Ingeniería y Ciencias',
+    avatar: '',
+    rol: 'tutor',
+    cubículo: 'Cubículo 101'
+  });
+  const [estudianteActivo, setEstudianteActivo] = useState<EstudianteCatalogo>({
+    id: 'est-activo',
+    matricula: '2026-UAT-001',
+    nombre: 'Estudiante Tutorado',
+    email: 'alumno@uat.edu.mx',
+    carrera: 'Ingeniería en Sistemas Computacionales',
+    semestre: 1,
+    promedio: 0,
+    telefono: '',
+    avatar: ''
+  });
+  const [seccionActiva, setSeccionActiva] = useState<SeccionNavegacion>('dashboard');
+  const [colapsado, setColapsado] = useState(false);
+
+  const [modalAsignarAbierto, setModalAsignarAbierto] = useState(false);
+  const [tutoradoSeleccionado, setTutoradoSeleccionado] = useState<AsignacionTutorado | null>(null);
+  const [tutorados, setTutorados] = useState<AsignacionTutorado[]>([]);
+  const [citas, setCitas] = useState<CitaAsesoria[]>([]);
+
+  // Sincronizar automáticamente la autenticación persistida en el contexto
+  useEffect(() => {
+    if (authIsAuthenticated && sesion) {
+      setIsAuthenticated(true);
+      const rol = sesion.usuario.rol === 'TUTOR' ? 'tutor' : 'alumno';
+      setUserRole(rol);
+      setRolActivo(sesion.usuario.rol === 'TUTOR' ? 'TUTOR' : 'ALUMNO');
+    } else if (!authIsAuthenticated) {
+      setIsAuthenticated(false);
+    }
+  }, [authIsAuthenticated, sesion]);
+
+  useEffect(() => {
+    document.title = 'UAT - Sistema Institucional de Asesorías | Universidad Autónoma de Tamaulipas';
+  }, []);
+
+  // Sincronizar reactivamente el perfil del usuario activo al editarse
+  useEffect(() => {
+    if (sesion?.usuario) {
+      if (sesion.usuario.rol === 'TUTOR') {
+        setTutorActivo((prev) => ({
+          ...prev,
+          id: sesion.usuario.tutorProfileId || prev.id,
+          nombre: sesion.usuario.nombre,
+          email: sesion.usuario.email,
+          avatar: sesion.usuario.avatar || prev.avatar,
+          departamento: sesion.usuario.departamento || prev.departamento,
+          cubículo: sesion.usuario.cubículo || prev.cubículo
+        }));
+      } else {
+        setEstudianteActivo((prev) => ({
+          ...prev,
+          id: sesion.usuario.estudianteProfileId || prev.id,
+          nombre: sesion.usuario.nombre,
+          email: sesion.usuario.email,
+          avatar: sesion.usuario.avatar || prev.avatar,
+          carrera: sesion.usuario.carrera || prev.carrera,
+          matricula: sesion.usuario.matricula || prev.matricula,
+          semestre: sesion.usuario.semestre || prev.semestre,
+          promedio: typeof sesion.usuario.promedio === 'number' ? sesion.usuario.promedio : prev.promedio
+        }));
+      }
+    }
+  }, [
+    sesion?.usuario?.nombre,
+    sesion?.usuario?.avatar,
+    sesion?.usuario?.departamento,
+    sesion?.usuario?.cubículo,
+    sesion?.usuario?.matricula,
+    sesion?.usuario?.carrera,
+    sesion?.usuario?.promedio
+  ]);
+
+  // Manejador centralizado para login exitoso y transición inmediata
+  const handleLoginSuccess = (rol: 'tutor' | 'alumno') => {
+    setUserRole(rol);
+    setIsAuthenticated(true);
+    setRolActivo(rol === 'tutor' ? 'TUTOR' : 'ALUMNO');
+    setSeccionActiva(rol === 'tutor' ? 'dashboard' : 'tutorados');
+  };
+
+  // Alternador rápido entre roles (Tutor / Alumno) para pruebas sin cerrar sesión
+  const handleAlternarRol = (nuevoRol: RolSimulado) => {
+    setRolActivo(nuevoRol);
+    const roleKey = nuevoRol === 'TUTOR' ? 'tutor' : 'alumno';
+    setUserRole(roleKey);
+    setSeccionActiva(nuevoRol === 'TUTOR' ? 'dashboard' : 'tutorados');
+    if (cambiarRolActivo) {
+      cambiarRolActivo(roleKey);
+    }
+  };
+
+  // Manejador centralizado para cierre de sesión seguro
+  const handleCerrarSesion = () => {
+    setIsAuthenticated(false);
+    setUserRole('tutor');
+    contextLogout();
+  };
+
+  const cargarDatos = async () => {
+    const res = await tutoriaService.getMisTutorados(tutorActivo.id);
+    if (res.success && res.data) {
+      setTutorados(res.data);
+    }
+
+    if (userRole === 'tutor') {
+      const resCitasTutor = await tutoriaService.getCitasPorTutor(tutorActivo.id);
+      if (resCitasTutor.data) {
+        setCitas(resCitasTutor.data);
+      }
+    } else {
+      const resCitas = await tutoriaService.getMiTutoriaComoAlumno(estudianteActivo.id);
+      if (resCitas.data?.citas) {
+        setCitas(resCitas.data.citas);
+      }
+    }
+
+    const tuts = await tutoriaService.getCatalogoTutores();
+    if (tuts.length > 0) {
+      setTutores(tuts);
+      const tAct = tuts.find((t) => t.id === tutorActivo.id);
+      if (tAct) setTutorActivo(tAct);
+    }
+
+    const ests = await tutoriaService.getCatalogoEstudiantes();
+    if (ests.length > 0) {
+      setCatalogoEstudiantes(ests);
+      const eAct = ests.find((e) => e.id === estudianteActivo.id);
+      if (eAct) setEstudianteActivo(eAct);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      cargarDatos();
+      const unsub = tutoriaService.subscribe(() => {
+        cargarDatos();
+      });
+      const onGlobalSync = () => {
+        cargarDatos();
+      };
+      window.addEventListener('uat-citas-updated', onGlobalSync);
+      window.addEventListener('uat-tutoria-sync', onGlobalSync);
+      return () => {
+        unsub();
+        window.removeEventListener('uat-citas-updated', onGlobalSync);
+        window.removeEventListener('uat-tutoria-sync', onGlobalSync);
+      };
+    }
+  }, [isAuthenticated, userRole, tutorActivo.id, estudianteActivo.id]);
+
+  const handleConfirmarCancelacionDashboard = async (eliminarPermanente = false) => {
+    if (!citaACancelarModal) return;
+    setProcesandoCancelacion(true);
+    try {
+      if (eliminarPermanente) {
+        await tutoriaService.eliminarCita(citaACancelarModal.id);
+      } else {
+        if (userRole === 'tutor') {
+          await tutoriaService.cancelarCitaComoTutor(citaACancelarModal.id);
+        } else {
+          await tutoriaService.cancelarCitaComoAlumno(citaACancelarModal.id);
+        }
+      }
+    } finally {
+      setProcesandoCancelacion(false);
+      setCitaACancelarModal(null);
+      await cargarDatos();
+    }
+  };
+
+  // ========================================================
+  // DECISIÓN CONDICIONAL EN RAÍZ:
+  // Si isAuthenticated === false -> Muestra estrictamente el Login de la UAT
+  // ========================================================
+  if (!isAuthenticated) {
+    return (
+      <AuthView
+        onLoginSuccess={handleLoginSuccess}
+        onLoginDirecto={handleLoginSuccess}
+      />
+    );
+  }
+
+  const total = tutorados.length;
+  const enRiesgo = tutorados.filter((t) => t.estado === 'EN_RIESGO' || t.estado === 'CONDICIONADO');
+  const promedioGeneral =
+    total > 0
+      ? (tutorados.reduce((acc, curr) => acc + curr.estudiante.promedio, 0) / total).toFixed(1)
+      : '0.0';
+  const totalNotas = tutorados.reduce((acc, curr) => acc + (curr.notas?.length || 0), 0);
+
+  // Sesiones agendadas activas para el panel principal (excluye canceladas)
+  const citasActivas = citas.filter((c) => c.estado !== 'Cancelada');
+  const proximasSesionesResumen =
+    citasActivas.length > 0
+      ? citasActivas.slice(0, 3).map((cita, idx) => {
+          const esGrupal = cita.esGrupal || cita.estudianteId === 'GRUPAL' || (cita.estudiantesIds && cita.estudiantesIds.length > 1);
+          const alumno = !esGrupal
+            ? catalogoEstudiantes.find((e) => e.id === cita.estudianteId) || estudianteActivo
+            : null;
+
+          return {
+            id: cita.id || `ses-${idx}`,
+            hora: cita.hora,
+            fecha: cita.fecha,
+            alumno: esGrupal
+              ? `Sesión Grupal (${cita.estudiantesIds?.length || 0} alumnos)`
+              : alumno?.nombre || 'Estudiante Tutorado',
+            carrera: esGrupal ? 'Asesoría Grupal' : alumno?.carrera || '',
+            semestre: esGrupal ? 1 : alumno?.semestre || 1,
+            modalidad: cita.modalidad,
+            cubículo: cita.modalidad === 'Virtual' ? 'Google Meet' : cita.lugar || (esGrupal ? 'Aula Magna' : tutorActivo.cubículo),
+            urgente: cita.estado === 'Pendiente',
+            tema: cita.tema,
+            esGrupal,
+            citaOriginal: cita
+          };
+        })
+      : [];
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 pb-16 md:pb-0">
+      {/* 1. SECCIÓN SIDEBAR (IZQUIERDA) & BOTTOM TAB BAR MÓVIL */}
+      <Sidebar
+        rolActivo={rolActivo}
+        tutorActivo={tutorActivo}
+        estudianteActivo={estudianteActivo}
+        catalogoTutores={tutores}
+        catalogoEstudiantes={catalogoEstudiantes}
+        seccionActiva={seccionActiva}
+        onCambiarSeccion={setSeccionActiva}
+        conteoTutorados={total}
+        colapsado={colapsado}
+        onToggleColapsar={() => setColapsado((prev) => !prev)}
+        onCerrarSesion={handleCerrarSesion}
+      />
+
+      {/* CONTENEDOR PRINCIPAL: Adaptado al ancho del Sidebar */}
+      <div
+        className={`flex flex-col flex-1 min-h-screen transition-all duration-300 ${
+          colapsado ? 'md:pl-20' : 'md:pl-64'
+        }`}
+      >
+        {/* Barra Superior Institucional UAT */}
+        <Header
+          rolActivo={rolActivo}
+          tutorActivo={tutorActivo}
+          estudianteActivo={estudianteActivo}
+          seccionActiva={seccionActiva}
+          onIrPerfil={() => setSeccionActiva('perfil')}
+          onCerrarSesion={handleCerrarSesion}
+        />
+
+        {/* ======================================================== */}
+        {/* REFACTORIZACIÓN MODULAR DE VISTAS POR ROL                */}
+        {/* ======================================================== */}
+        <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* VISTA: MI PERFIL INSTITUCIONAL */}
+          {seccionActiva === 'perfil' && (
+            <MiPerfilView onLogout={handleCerrarSesion} />
+          )}
+
+          {/* VISTA: DOCUMENTOS Y ARCHIVOS (DIFERENCIADO POR ROL) */}
+          {seccionActiva === 'archivos' && (
+            <ArchivosEvidenciasView
+              rolActivo={rolActivo}
+              tutorActivo={tutorActivo}
+              estudianteActivo={estudianteActivo}
+              catalogoEstudiantes={catalogoEstudiantes}
+            />
+          )}
+
+          {/* ====================================================== */}
+          {/* VISTAS EXCLUSIVAS DEL TUTOR DOCENTE                    */}
+          {/* ====================================================== */}
+          {seccionActiva !== 'perfil' && seccionActiva !== 'archivos' && rolActivo === 'TUTOR' && (
+            <>
+              {/* 1. Panel Principal (Dashboard) */}
+              {seccionActiva === 'dashboard' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start animate-in fade-in duration-200">
+                  <div className="lg:col-span-8 space-y-6">
+                    {/* Tarjeta de Bienvenida del Tutor */}
+                    <div className="bg-white dark:bg-slate-900 rounded-[16px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.05)] border border-slate-200/90 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-[#EE7402]/10 text-[#EE7402] border border-[#EE7402]/30 font-heading">
+                            UAT &middot; Coordinación Docente
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            Ciclo Escolar 2026-1
+                          </span>
+                        </div>
+                        <h1 className="font-heading font-semibold text-xl sm:text-2xl text-slate-900 dark:text-white mt-1.5 tracking-tight">
+                          Bienvenido(a), {tutorActivo.nombre}
+                        </h1>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          {tutorActivo.departamento} &bull; Cubículo de atención: {tutorActivo.cubículo}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setModalAsignarAbierto(true)}
+                        className="px-4 py-2.5 bg-[#EE7402] hover:bg-[#D96200] active:bg-[#BF5600] text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all hover:scale-[1.01] cursor-pointer self-start sm:self-auto"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>Asignar Alumno</span>
+                      </button>
+                    </div>
+
+                    {/* Tarjetas de KPI */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <StatCard
+                        title="Tutorados Asignados"
+                        value={total}
+                        subtitle="Acompañamiento UAT"
+                        icon={Users}
+                        variant="default"
+                      />
+
+                      <StatCard
+                        title="Alumnos en Riesgo"
+                        value={enRiesgo.length}
+                        badge={
+                          total > 0 && enRiesgo.length > 0
+                            ? `(${Math.round((enRiesgo.length / total) * 100)}%)`
+                            : undefined
+                        }
+                        subtitle="Atención prioritaria"
+                        icon={AlertTriangle}
+                        variant="rose"
+                      />
+
+                      <StatCard
+                        title="Promedio del Grupo"
+                        value={promedioGeneral}
+                        badge="/ 10"
+                        subtitle="Desempeño general"
+                        icon={Award}
+                        variant="emerald"
+                      />
+
+                      <StatCard
+                        title="Sesiones Registradas"
+                        value={totalNotas}
+                        subtitle="Bitácora activa"
+                        icon={Clock}
+                        variant="blue"
+                      />
+                    </div>
+
+                    {/* Tarjeta de Próximas Sesiones Agendadas */}
+                    <div className="bg-white dark:bg-slate-900 rounded-[16px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.05)] border border-slate-200/90 dark:border-slate-800 space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-[#EE7402]/15 text-[#EE7402] flex items-center justify-center">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h2 className="font-heading font-semibold text-base text-slate-900 dark:text-white">
+                              Próximas Sesiones de Asesoría
+                            </h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              Citas programadas en la agenda institucional
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSeccionActiva('calendario')}
+                          className="text-xs font-semibold text-[#EE7402] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Ver agenda completa</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {proximasSesionesResumen.length > 0 ? (
+                          proximasSesionesResumen.map((ses) => (
+                            <div
+                              key={ses.id}
+                              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                                ses.urgente
+                                  ? 'bg-[#FFF7ED] dark:bg-rose-950/20 border-[#EE7402]/40'
+                                  : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div
+                                  className={`px-2.5 py-1.5 rounded-lg text-center font-mono shrink-0 ${
+                                    ses.urgente
+                                      ? 'bg-[#EE7402] text-white font-bold'
+                                      : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600'
+                                  }`}
+                                >
+                                  <span className="block text-[10px] font-semibold uppercase">
+                                    {ses.fecha.split(',')[0]}
+                                  </span>
+                                  <span className="block text-xs font-bold">{ses.hora}</span>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-heading font-semibold text-xs text-slate-900 dark:text-white">
+                                      {ses.alumno}
+                                    </span>
+                                    {ses.urgente && (
+                                      <span className="text-[9px] uppercase font-bold px-2 py-0.2 rounded-full bg-[#EE7402] text-white">
+                                        Atención Prioritaria
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                      {ses.carrera} &bull; {formatSemestre(ses.semestre)}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+                                    {ses.tema}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                  {ses.modalidad === 'Virtual' ? (
+                                    <Video className="w-3 h-3 text-sky-500" />
+                                  ) : (
+                                    <MapPin className="w-3 h-3 text-[#EE7402]" />
+                                  )}
+                                  {ses.modalidad}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setCitaACancelarModal(ses.citaOriginal)}
+                                  className="px-2.5 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg text-xs font-semibold border border-rose-200/80 dark:border-rose-900/60 transition-colors cursor-pointer flex items-center gap-1"
+                                  title="Cancelar o eliminar esta cita"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>Cancelar</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setSeccionActiva('calendario')}
+                                  className="px-3 py-1 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-600 transition-colors cursor-pointer"
+                                >
+                                  Ver Detalle
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-6 text-xs text-slate-400">
+                            No hay citas agendadas próximamente.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Panel Derecho Ejecutivo */}
+                  <div className="lg:col-span-4">
+                    <RightPanel
+                      rolActivo={rolActivo}
+                      tutorActivo={tutorActivo}
+                      totalTutorados={total}
+                      alumnosEnRiesgo={enRiesgo}
+                      promedioGeneral={promedioGeneral}
+                      totalNotas={totalNotas}
+                      onAbrirAsignarModal={() => setModalAsignarAbierto(true)}
+                      onVerDirectorio={() => setSeccionActiva('tutorados')}
+                      onVerCalendario={() => setSeccionActiva('calendario')}
+                      onSeleccionarTutorado={setTutoradoSeleccionado}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Agenda (Calendario) */}
+              {seccionActiva === 'calendario' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <CalendarioSesionesView
+                    rolActivo="TUTOR"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+
+              {/* 3. Mis Tutorados (Directorio) */}
+              {seccionActiva === 'tutorados' && (
+                <div className="animate-in fade-in duration-200">
+                  <TutoradosDashboard
+                    tutorActivo={tutorActivo}
+                    onAbrirAsignarModal={() => setModalAsignarAbierto(true)}
+                    onSeleccionarTutorado={setTutoradoSeleccionado}
+                    onActualizacionGlobal={cargarDatos}
+                  />
+                </div>
+              )}
+
+              {/* 4. Actividades y Tareas de Asesoría (Estilo Microsoft Teams) */}
+              {seccionActiva === 'actividades' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <ActividadesTeamsView
+                    rolActivo="TUTOR"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+
+              {/* 5. Bitácora de Notas y Acuerdos de Seguimiento (Tutor) */}
+              {seccionActiva === 'notas' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <BitacoraNotasView
+                    rolActivo="TUTOR"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ====================================================== */}
+          {/* VISTAS EXCLUSIVAS DEL ALUMNO TUTORADO                  */}
+          {/* ====================================================== */}
+          {seccionActiva !== 'perfil' && seccionActiva !== 'archivos' && rolActivo === 'ALUMNO' && (
+            <>
+              {/* 1. Ver Información del Tutor */}
+              {(seccionActiva === 'dashboard' || seccionActiva === 'tutorados') && (
+                <div className="max-w-6xl w-full mx-auto animate-in fade-in duration-200">
+                  <AlumnoPortalView estudianteActivo={estudianteActivo} />
+                </div>
+              )}
+
+              {/* 2. Mis Reuniones */}
+              {seccionActiva === 'calendario' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <CalendarioSesionesView
+                    rolActivo="ALUMNO"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+
+              {/* 3. Mis Actividades (Estilo Microsoft Teams) */}
+              {seccionActiva === 'actividades' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <ActividadesTeamsView
+                    rolActivo="ALUMNO"
+                    tutorActivo={tutorActivo}
+                    estudianteActivo={estudianteActivo}
+                    catalogoEstudiantes={catalogoEstudiantes}
+                  />
+                </div>
+              )}
+
+              {/* 4. Mis Notas Personales y Acuerdos */}
+              {seccionActiva === 'notas' && (
+                <div className="animate-in fade-in duration-200">
+                  <NotasPersonalesView />
+                </div>
+              )}
+            </>
+          )}
+        </main>
+
+        {/* Modales Globales */}
+        {rolActivo === 'TUTOR' && (
+          <>
+            <AsignarTutoradoModal
+              isOpen={modalAsignarAbierto}
+              onClose={() => setModalAsignarAbierto(false)}
+              tutorActivo={tutorActivo}
+              catalogoEstudiantes={catalogoEstudiantes}
+              onAsignacionExitosa={cargarDatos}
+            />
+
+            <DetalleTutoradoModal
+              asignacion={tutoradoSeleccionado}
+              onClose={() => setTutoradoSeleccionado(null)}
+              tutorActivo={tutorActivo}
+              onActualizacion={cargarDatos}
+            />
+          </>
+        )}
+
+        {/* Modal de Confirmación Limpia para Cancelar / Eliminar Citas del Dashboard */}
+        {citaACancelarModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !procesandoCancelacion) {
+                setCitaACancelarModal(null);
+              }
+            }}
+          >
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-[#EE7402] flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                    Cancelar Sesión de Asesoría
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    ¿Confirmas la cancelación de esta asesoría agendada?
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-2 text-xs">
+                <div className="font-semibold text-slate-900 dark:text-white truncate">
+                  {citaACancelarModal.tema}
+                </div>
+                <div className="text-slate-500 dark:text-slate-400 flex flex-wrap gap-2 text-[11px]">
+                  <span>📅 {citaACancelarModal.fecha}</span>
+                  <span>&bull;</span>
+                  <span>⏰ {citaACancelarModal.hora}</span>
+                  <span>&bull;</span>
+                  <span>📍 {citaACancelarModal.modalidad}</span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Al cancelar o eliminar, la sesión desaparecerá de inmediato del widget de próximas sesiones y se actualizará en la agenda institucional.
+              </p>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  disabled={procesandoCancelacion}
+                  onClick={() => setCitaACancelarModal(null)}
+                  className="w-full sm:w-auto px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  disabled={procesandoCancelacion}
+                  onClick={() => handleConfirmarCancelacionDashboard(false)}
+                  className="w-full sm:w-auto px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Cancelar Cita</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={procesandoCancelacion}
+                  onClick={() => handleConfirmarCancelacionDashboard(true)}
+                  className="w-full sm:w-auto px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Eliminar Definitivo</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
