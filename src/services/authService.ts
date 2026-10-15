@@ -102,16 +102,109 @@ class AuthBackendService {
       this.usuarios = [];
     }
 
+    // Asegurar que las cuentas base oficiales siempre existan con su perfil intacto
+    this.asegurarUsuariosOficiales();
+
     // Sincronizar en segundo plano con IndexedDB
     dbStorage.getAll<UsuarioSistema>('usuarios').then((dbUsers) => {
       if (dbUsers && dbUsers.length > 0) {
-        this.usuarios = dbUsers;
+        dbUsers.forEach((u) => {
+          if (!this.usuarios.some((existing) => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())) {
+            this.usuarios.push(u);
+          }
+        });
+        this.asegurarUsuariosOficiales();
         try {
           localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(this.usuarios));
         } catch {}
         this.notify();
       }
     }).catch(() => {});
+  }
+
+  /**
+   * Garantiza que los perfiles institucionales de Docente Tutor y Alumno Tutorado
+   * existan con su información básica de perfil limpia (como cuenta recién creada)
+   */
+  public asegurarUsuariosOficiales() {
+    const nowIso = new Date().toISOString();
+    let modificado = false;
+
+    // 1. Docente Tutor Oficial
+    let tutor = this.usuarios.find(
+      (u) => u.email.toLowerCase() === 'roberto.mendoza@uat.edu.mx' || u.rol === 'TUTOR'
+    );
+    if (!tutor) {
+      tutor = {
+        id: 'usr-tutor-uat',
+        nombre: 'Dr. Roberto Mendoza Salinas',
+        email: 'roberto.mendoza@uat.edu.mx',
+        passwordHash: hashPassword('password123'),
+        rol: 'TUTOR',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250&auto=format&fit=crop&q=80',
+        activo: true,
+        fechaRegistro: nowIso,
+        ultimoAcceso: nowIso,
+        tutorProfileId: 'tutor-activo',
+        departamento: 'Facultad de Ingeniería y Ciencias',
+        cubículo: 'Edificio Central, Cubículo 101'
+      };
+      this.usuarios.push(tutor);
+      modificado = true;
+    }
+    this.persistExtraTutor({
+      id: tutor.tutorProfileId || 'tutor-activo',
+      nombre: tutor.nombre,
+      email: tutor.email,
+      departamento: tutor.departamento || 'Facultad de Ingeniería y Ciencias',
+      avatar: tutor.avatar,
+      rol: 'tutor',
+      cubículo: tutor.cubículo || 'Edificio Central, Cubículo 101'
+    });
+
+    // 2. Alumno Tutorado Oficial
+    let alumno = this.usuarios.find(
+      (u) => u.email.toLowerCase() === 'ana.morales@alumno.uat.edu.mx' || u.rol === 'TUTORADO'
+    );
+    if (!alumno) {
+      alumno = {
+        id: 'usr-alumno-uat',
+        nombre: 'Ana Lucía Morales Rivera',
+        email: 'ana.morales@alumno.uat.edu.mx',
+        passwordHash: hashPassword('password123'),
+        rol: 'TUTORADO',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80',
+        activo: true,
+        fechaRegistro: nowIso,
+        ultimoAcceso: nowIso,
+        estudianteProfileId: 'est-activo',
+        matricula: '2026-ISC-101',
+        carrera: 'Ingeniería en Sistemas Computacionales',
+        semestre: 4,
+        promedio: 9.4,
+        telefono: '+52 834 112 3344'
+      };
+      this.usuarios.push(alumno);
+      modificado = true;
+    } else if (alumno.promedio === undefined || alumno.promedio === 0) {
+      alumno.promedio = 9.4;
+      modificado = true;
+    }
+    this.persistExtraEstudiante({
+      id: alumno.estudianteProfileId || 'est-activo',
+      matricula: alumno.matricula || '2026-ISC-101',
+      nombre: alumno.nombre,
+      email: alumno.email,
+      carrera: alumno.carrera || 'Ingeniería en Sistemas Computacionales',
+      semestre: alumno.semestre || 4,
+      promedio: alumno.promedio ?? 9.4,
+      telefono: alumno.telefono || '+52 834 112 3344',
+      avatar: alumno.avatar
+    });
+
+    if (modificado) {
+      this.saveUsers();
+    }
   }
 
   private saveUsers() {
@@ -523,7 +616,7 @@ class AuthBackendService {
         email,
         carrera,
         semestre,
-        promedio: 0,
+        promedio: payload.promedio !== undefined ? Number(payload.promedio) : 9.4,
         telefono,
         avatar: avatarDefault
       };
@@ -558,7 +651,7 @@ class AuthBackendService {
           ? payload.carrera?.trim() || 'Ingeniería en Sistemas Computacionales'
           : undefined,
       semestre: rol === 'TUTORADO' ? Number(payload.semestre || 1) : undefined,
-      promedio: rol === 'TUTORADO' ? 0 : undefined,
+      promedio: rol === 'TUTORADO' ? (payload.promedio !== undefined ? Number(payload.promedio) : 9.4) : undefined,
       telefono: payload.telefono?.trim() || ''
     };
 

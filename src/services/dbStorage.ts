@@ -300,6 +300,25 @@ class DatabaseStorageService {
   }
 
   /**
+   * Limpia únicamente las tablas transaccionales (asignaciones, citas, archivos, actividades, notas, disponibilidad, propuestas)
+   * asegurando que las cuentas de usuario y perfiles permanezcan intactos.
+   */
+  public async clearTransactionalStores(): Promise<void> {
+    const transactionalStores: StoreName[] = [
+      'asignaciones',
+      'citas',
+      'archivos',
+      'actividades',
+      'notas',
+      'disponibilidad',
+      'propuestas'
+    ];
+    for (const store of transactionalStores) {
+      await this.clear(store);
+    }
+  }
+
+  /**
    * Exporta toda la base de datos a un archivo JSON para respaldo o auditoría
    */
   public async exportAllData(): Promise<Record<StoreName, any[]>> {

@@ -59,6 +59,7 @@ export interface RegistroUsuarioPayload {
   matricula?: string;
   carrera?: string;
   semestre?: number;
+  promedio?: number;
   telefono?: string;
 }
 

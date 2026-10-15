@@ -51,23 +51,23 @@ function AppContent() {
   const [catalogoEstudiantes, setCatalogoEstudiantes] = useState<EstudianteCatalogo[]>([]);
   const [tutorActivo, setTutorActivo] = useState<Tutor>({
     id: 'tutor-activo',
-    nombre: 'Docente Tutor',
-    email: 'docente@uat.edu.mx',
+    nombre: 'Dr. Roberto Mendoza Salinas',
+    email: 'roberto.mendoza@uat.edu.mx',
     departamento: 'Facultad de Ingeniería y Ciencias',
-    avatar: '',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250&auto=format&fit=crop&q=80',
     rol: 'tutor',
-    cubículo: 'Cubículo 101'
+    cubículo: 'Edificio Central, Cubículo 101'
   });
   const [estudianteActivo, setEstudianteActivo] = useState<EstudianteCatalogo>({
     id: 'est-activo',
-    matricula: '2026-UAT-001',
-    nombre: 'Estudiante Tutorado',
-    email: 'alumno@uat.edu.mx',
+    matricula: '2026-ISC-101',
+    nombre: 'Ana Lucía Morales Rivera',
+    email: 'ana.morales@alumno.uat.edu.mx',
     carrera: 'Ingeniería en Sistemas Computacionales',
-    semestre: 1,
-    promedio: 0,
-    telefono: '',
-    avatar: ''
+    semestre: 4,
+    promedio: 9.4,
+    telefono: '+52 834 112 3344',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80'
   });
   const [seccionActiva, setSeccionActiva] = useState<SeccionNavegacion>('dashboard');
   const [colapsado, setColapsado] = useState(false);

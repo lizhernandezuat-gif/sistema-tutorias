@@ -101,7 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rol: 'TUTORADO',
           matricula: '2026-ISC-101',
           carrera: 'Ingeniería en Sistemas Computacionales',
-          semestre: 4
+          semestre: 4,
+          promedio: 9.4
         });
       }
       usuarios = authService.getUsuariosRegistrados();

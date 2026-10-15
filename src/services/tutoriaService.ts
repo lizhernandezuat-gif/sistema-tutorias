@@ -43,7 +43,9 @@ const NOTAS_STORAGE_KEY = 'sistema_tutorias_notas_personales_v2';
 const DISPONIBILIDAD_STORAGE_KEY = 'sistema_tutorias_disponibilidad_v3';
 const PROPUESTAS_STORAGE_KEY = 'sistema_tutorias_propuestas_v3';
 
-
+// Clave de bandera de purga para garantizar arranque 100% limpio sin registros de prueba previos
+const CLEAN_PURGE_FLAG = 'sistema_tutorias_clean_state_v2026_prod';
+const CLEAN_IDB_FLAG = 'sistema_tutorias_clean_idb_v2026_prod';
 
 export interface HttpLogEntry {
   id: string;
@@ -75,6 +77,43 @@ class TutoriaBackendService {
 
   private initData() {
     try {
+      const purgado = typeof window !== 'undefined' ? localStorage.getItem(CLEAN_PURGE_FLAG) : 'true';
+      if (!purgado) {
+        // Limpieza profunda de colecciones de prueba anteriores en LocalStorage
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(CITAS_STORAGE_KEY);
+        localStorage.removeItem(ARCHIVOS_STORAGE_KEY);
+        localStorage.removeItem(ACTIVIDADES_STORAGE_KEY);
+        localStorage.removeItem(NOTAS_STORAGE_KEY);
+        localStorage.removeItem(DISPONIBILIDAD_STORAGE_KEY);
+        localStorage.removeItem(PROPUESTAS_STORAGE_KEY);
+
+        localStorage.removeItem('sistema_tutorias_asignaciones_v1');
+        localStorage.removeItem('sistema_tutorias_citas_v1');
+        localStorage.removeItem('sistema_tutorias_archivos_v1');
+        localStorage.removeItem('sistema_tutorias_actividades_v1');
+        localStorage.removeItem('sistema_tutorias_actividades_v2');
+        localStorage.removeItem('sistema_tutorias_notas_personales_v1');
+        localStorage.removeItem('db_asignaciones');
+        localStorage.removeItem('db_citas');
+        localStorage.removeItem('db_archivos');
+        localStorage.removeItem('db_actividades');
+        localStorage.removeItem('db_notas');
+        localStorage.removeItem('db_disponibilidad');
+        localStorage.removeItem('db_propuestas');
+
+        this.asignaciones = [];
+        this.citas = [];
+        this.archivos = [];
+        this.actividades = [];
+        this.notas = [];
+        this.disponibilidades = [];
+        this.propuestasHorarios = [];
+
+        localStorage.setItem(CLEAN_PURGE_FLAG, 'true');
+        return;
+      }
+
       const stored = localStorage.getItem(STORAGE_KEY);
       this.asignaciones = stored ? JSON.parse(stored) : [];
 
@@ -111,32 +150,29 @@ class TutoriaBackendService {
    */
   private async syncFromIndexedDB() {
     try {
+      if (typeof window !== 'undefined' && !localStorage.getItem(CLEAN_IDB_FLAG)) {
+        await dbStorage.clearTransactionalStores();
+        localStorage.setItem(CLEAN_IDB_FLAG, 'true');
+      }
+
       const dbAsignaciones = await dbStorage.getAll<AsignacionTutorado>('asignaciones');
       if (dbAsignaciones.length > 0) {
         this.asignaciones = dbAsignaciones;
-      } else if (this.asignaciones.length > 0) {
-        await dbStorage.putMany('asignaciones', this.asignaciones);
       }
 
       const dbCitas = await dbStorage.getAll<CitaAsesoria>('citas');
       if (dbCitas.length > 0) {
         this.citas = dbCitas;
-      } else if (this.citas.length > 0) {
-        await dbStorage.putMany('citas', this.citas);
       }
 
       const dbArchivos = await dbStorage.getAll<ArchivoSistema>('archivos');
       if (dbArchivos.length > 0) {
         this.archivos = dbArchivos;
-      } else if (this.archivos.length > 0) {
-        await dbStorage.putMany('archivos', this.archivos);
       }
 
       const dbActividades = await dbStorage.getAll<ActividadAsignada>('actividades');
       if (dbActividades.length > 0) {
         this.actividades = dbActividades;
-      } else if (this.actividades.length > 0) {
-        await dbStorage.putMany('actividades', this.actividades);
       }
 
       const dbNotas = await dbStorage.getAll<NotaPersonalItem>('notas');
@@ -147,15 +183,11 @@ class TutoriaBackendService {
       const dbDisp = await dbStorage.getAll<DisponibilidadTutor & { id: string }>('disponibilidad');
       if (dbDisp.length > 0) {
         this.disponibilidades = dbDisp;
-      } else if (this.disponibilidades.length > 0) {
-        await dbStorage.putMany('disponibilidad', this.disponibilidades.map(d => ({ ...d, id: d.tutorId })));
       }
 
       const dbProp = await dbStorage.getAll<PropuestaHorario>('propuestas');
       if (dbProp.length > 0) {
         this.propuestasHorarios = dbProp;
-      } else if (this.propuestasHorarios.length > 0) {
-        await dbStorage.putMany('propuestas', this.propuestasHorarios);
       }
 
       this.notify();
@@ -2230,10 +2262,37 @@ class TutoriaBackendService {
 
     const dbEstudiantes = await dbStorage.getAll<EstudianteCatalogo>('estudiantes');
     dbEstudiantes.forEach(e => {
-      if (!extra.some(c => c.id === e.id)) {
+      if (!extra.some(c => c.id === e.id || c.email.toLowerCase() === e.email.toLowerCase())) {
         extra.push(e);
       }
     });
+
+    // Asegurar siempre el perfil institucional oficial de la estudiante con su promedio
+    if (!extra.some(e => e.id === 'est-activo' || e.email.toLowerCase() === 'ana.morales@alumno.uat.edu.mx')) {
+      const estOficial: EstudianteCatalogo = {
+        id: 'est-activo',
+        matricula: '2026-ISC-101',
+        nombre: 'Ana Lucía Morales Rivera',
+        email: 'ana.morales@alumno.uat.edu.mx',
+        carrera: 'Ingeniería en Sistemas Computacionales',
+        semestre: 4,
+        promedio: 9.4,
+        telefono: '+52 834 112 3344',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=250&auto=format&fit=crop&q=80'
+      };
+      extra.push(estOficial);
+      try {
+        localStorage.setItem(extraKey, JSON.stringify(extra));
+        dbStorage.put('estudiantes', estOficial).catch(() => {});
+      } catch {}
+    } else {
+      // Garantizar que si existe, tenga el promedio asignado
+      const ana = extra.find(e => e.id === 'est-activo' || e.email.toLowerCase() === 'ana.morales@alumno.uat.edu.mx');
+      if (ana && (ana.promedio === undefined || ana.promedio === 0)) {
+        ana.promedio = 9.4;
+      }
+    }
+
     return extra;
   }
 
@@ -2250,10 +2309,29 @@ class TutoriaBackendService {
 
     const dbTutores = await dbStorage.getAll<Tutor>('tutores');
     dbTutores.forEach((t) => {
-      if (!extra.some((c) => c.id === t.id)) {
+      if (!extra.some((c) => c.id === t.id || c.email.toLowerCase() === t.email.toLowerCase())) {
         extra.push(t);
       }
     });
+
+    // Asegurar siempre el perfil institucional oficial del docente tutor
+    if (!extra.some(t => t.id === 'tutor-activo' || t.email.toLowerCase() === 'roberto.mendoza@uat.edu.mx')) {
+      const tutorOficial: Tutor = {
+        id: 'tutor-activo',
+        nombre: 'Dr. Roberto Mendoza Salinas',
+        email: 'roberto.mendoza@uat.edu.mx',
+        departamento: 'Facultad de Ingeniería y Ciencias',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=250&auto=format&fit=crop&q=80',
+        rol: 'tutor',
+        cubículo: 'Edificio Central, Cubículo 101'
+      };
+      extra.push(tutorOficial);
+      try {
+        localStorage.setItem(extraKey, JSON.stringify(extra));
+        dbStorage.put('tutores', tutorOficial).catch(() => {});
+      } catch {}
+    }
+
     return extra;
   }
 
